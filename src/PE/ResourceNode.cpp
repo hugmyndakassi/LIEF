@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <algorithm>
 #include <sstream>
 #include <iomanip>
 
@@ -24,6 +25,8 @@
 #include "LIEF/PE/ResourceNode.hpp"
 #include "LIEF/PE/ResourceDirectory.hpp"
 #include "LIEF/PE/ResourceData.hpp"
+
+#include "internal_utils.hpp"
 
 namespace LIEF {
 namespace PE {
@@ -122,6 +125,8 @@ ResourceNode& ResourceNode::add_child(const ResourceDirectory& child) {
     } else {
       dir->numberof_id_entries(dir->numberof_id_entries() + 1);
     }
+
+    return **insert_child(std::move(new_node));
   }
 
   childs_.push_back(std::move(new_node));
@@ -142,6 +147,7 @@ ResourceNode& ResourceNode::add_child(const ResourceData& child) {
       dir->numberof_id_entries(dir->numberof_id_entries() + 1);
     }
 
+    return **insert_child(std::move(new_node));
   }
   childs_.push_back(std::move(new_node));
   return *childs_.back();
@@ -169,7 +175,7 @@ void ResourceNode::delete_child(const ResourceNode& node) {
       });
 
   if (it_node == std::end(childs_)) {
-    LIEF_ERR("Unable to find the node {}", node);
+    LIEF_ERR("Unable to find the node {}", to_string(node));
     return;
   }
 
@@ -192,37 +198,42 @@ void ResourceNode::id(uint32_t id) {
 }
 
 void ResourceNode::name(const std::string& name) {
-  this->name(u8tou16(name));
+  if (auto res = u8tou16(name)) {
+    return this->name(std::move(*res));
+  }
+  LIEF_WARN("{} can't be converted to a UTF-16 string", name);
 }
 
-void ResourceNode::name(const std::u16string& name) {
-  name_ = name;
-}
 
-
-void ResourceNode::sort_by_id() {
-  std::sort(std::begin(childs_), std::end(childs_),
+// This logic follows the description from the Microsoft documentation at
+// https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#resource-directory-table
+//
+// "(remember that all the Name entries precede all the ID entries for the table). All entries for the table
+// "are sorted in ascending order: the Name entries by case-sensitive string and the ID entries by numeric value."
+ResourceNode::childs_t::iterator ResourceNode::insert_child(std::unique_ptr<ResourceNode> child) {
+  const auto it = std::upper_bound(childs_.begin(), childs_.end(), child,
       [] (const std::unique_ptr<ResourceNode>& lhs, const std::unique_ptr<ResourceNode>& rhs) {
-        return lhs->id() < rhs->id();
+        if (lhs->has_name() && rhs->has_name()) {
+          // Case-sensitive string sort
+          return std::lexicographical_compare(
+              lhs->name().begin(), lhs->name().end(),
+              rhs->name().begin(), rhs->name().end());
+        } else if (!lhs->has_name() && !rhs->has_name()) {
+          return lhs->id() < rhs->id();
+        } else {
+          // Named entries come first
+          return lhs->has_name();
+        }
       });
+
+  return childs_.insert(it, std::move(child));
 }
 
 void ResourceNode::accept(Visitor& visitor) const {
   visitor.visit(*this);
 }
 
-bool ResourceNode::operator==(const ResourceNode& rhs) const {
-  if (this == &rhs) {
-    return true;
-  }
-  size_t hash_lhs = Hash::hash(*this);
-  size_t hash_rhs = Hash::hash(rhs);
-  return hash_lhs == hash_rhs;
-}
 
-bool ResourceNode::operator!=(const ResourceNode& rhs) const {
-  return !(*this == rhs);
-}
 
 std::ostream& operator<<(std::ostream& os, const ResourceNode& node) {
   if (node.is_directory()) {

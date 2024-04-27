@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -89,18 +89,7 @@ void DylibCommand::accept(Visitor& visitor) const {
   visitor.visit(*this);
 }
 
-bool DylibCommand::operator==(const DylibCommand& rhs) const {
-  if (this == &rhs) {
-    return true;
-  }
-  size_t hash_lhs = Hash::hash(*this);
-  size_t hash_rhs = Hash::hash(rhs);
-  return hash_lhs == hash_rhs;
-}
 
-bool DylibCommand::operator!=(const DylibCommand& rhs) const {
-  return !(*this == rhs);
-}
 
 
 std::ostream& DylibCommand::print(std::ostream& os) const {
@@ -139,6 +128,7 @@ bool DylibCommand::classof(const LoadCommand* cmd) {
          type == LOAD_COMMAND_TYPES::LC_ID_DYLIB ||
          type == LOAD_COMMAND_TYPES::LC_LOAD_DYLIB ||
          type == LOAD_COMMAND_TYPES::LC_REEXPORT_DYLIB ||
+         type == LOAD_COMMAND_TYPES::LC_LOAD_UPWARD_DYLIB ||
          type == LOAD_COMMAND_TYPES::LC_LAZY_LOAD_DYLIB;
 }
 

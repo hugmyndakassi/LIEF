@@ -1,5 +1,5 @@
 /* Copyright 2017 - 2021 J.Rieck (based on R. Thomas's work)
- * Copyright 2017 - 2022 Quarkslab
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <numeric>
 #include <iomanip>
 
 #include "LIEF/MachO/hash.hpp"
@@ -51,18 +50,7 @@ void RPathCommand::accept(Visitor& visitor) const {
 }
 
 
-bool RPathCommand::operator==(const RPathCommand& rhs) const {
-  if (this == &rhs) {
-    return true;
-  }
-  size_t hash_lhs = Hash::hash(*this);
-  size_t hash_rhs = Hash::hash(rhs);
-  return hash_lhs == hash_rhs;
-}
 
-bool RPathCommand::operator!=(const RPathCommand& rhs) const {
-  return !(*this == rhs);
-}
 
 bool RPathCommand::classof(const LoadCommand* cmd) {
   // This must be sync with BinaryParser.tcc

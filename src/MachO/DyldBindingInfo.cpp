@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,13 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <numeric>
-#include <iomanip>
-
 #include "LIEF/MachO/hash.hpp"
-#include "LIEF/MachO/EnumToString.hpp"
 #include "LIEF/MachO/DyldBindingInfo.hpp"
-#include "LIEF/MachO/Symbol.hpp"
 
 namespace LIEF {
 namespace MachO {
@@ -27,7 +22,6 @@ namespace MachO {
 DyldBindingInfo::~DyldBindingInfo() = default;
 DyldBindingInfo::DyldBindingInfo() = default;
 
-DyldBindingInfo& DyldBindingInfo::operator=(DyldBindingInfo&&) = default;
 DyldBindingInfo::DyldBindingInfo(DyldBindingInfo&&) = default;
 DyldBindingInfo::DyldBindingInfo(const DyldBindingInfo& other) = default;
 
@@ -83,24 +77,6 @@ uint64_t DyldBindingInfo::original_offset() const {
 
 void DyldBindingInfo::accept(Visitor& visitor) const {
   visitor.visit(*this);
-}
-
-bool DyldBindingInfo::operator==(const DyldBindingInfo& rhs) const {
-  if (this == &rhs) {
-    return true;
-  }
-  if (&rhs == this) { return true; }
-  size_t hash_lhs = Hash::hash(*this);
-  size_t hash_rhs = Hash::hash(rhs);
-  return hash_lhs == hash_rhs;
-}
-
-bool DyldBindingInfo::operator!=(const DyldBindingInfo& rhs) const {
-  return !(*this == rhs);
-}
-
-bool DyldBindingInfo::classof(const BindingInfo& info) {
-  return info.type() == BindingInfo::TYPES::DYLD_INFO;
 }
 
 std::ostream& operator<<(std::ostream& os, const DyldBindingInfo& info) {

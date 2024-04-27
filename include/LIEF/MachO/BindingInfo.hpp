@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 #ifndef LIEF_MACHO_BINDING_INFO_H
 #define LIEF_MACHO_BINDING_INFO_H
-#include <iostream>
+#include <ostream>
 
 #include "LIEF/visibility.h"
 #include "LIEF/types.hpp"
@@ -44,8 +44,9 @@ class LIEF_API BindingInfo : public Object {
   public:
   enum class TYPES {
     UNKNOWN = 0,
-    DYLD_INFO,  /// Binding associated with the Dyld info opcodes
-    CHAINED,    /// Binding associated with the chained fixups
+    DYLD_INFO,    /// Binding associated with the Dyld info opcodes
+    CHAINED,      /// Binding associated with the chained fixups
+    CHAINED_LIST, /// Internal use
   };
 
   BindingInfo();
@@ -96,9 +97,6 @@ class LIEF_API BindingInfo : public Object {
   virtual TYPES type() const = 0;
 
   ~BindingInfo() override;
-
-  bool operator==(const BindingInfo& rhs) const;
-  bool operator!=(const BindingInfo& rhs) const;
 
   void accept(Visitor& visitor) const override;
 

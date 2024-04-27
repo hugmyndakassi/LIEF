@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  * Copyright 2017 - 2021 K. Nakagawa
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,8 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <algorithm>
 
-#include "LIEF/exception.hpp"
 #include "LIEF/PE/hash.hpp"
 #include "LIEF/PE/EnumToString.hpp"
 #include "PE/Structures.hpp"
@@ -45,18 +45,7 @@ void ResourceAccelerator::accept(Visitor& visitor) const {
   visitor.visit(*this);
 }
 
-bool ResourceAccelerator::operator==(const ResourceAccelerator& rhs) const {
-  if (this == &rhs) {
-    return true;
-  }
-  const auto hash_lhs = Hash::hash(*this);
-  const auto hash_rhs = Hash::hash(rhs);
-  return hash_lhs == hash_rhs;
-}
 
-bool ResourceAccelerator::operator!=(const ResourceAccelerator& rhs) const {
-  return !(*this == rhs);
-}
 
 std::ostream& operator<<(std::ostream& os, const ResourceAccelerator& acc) {
   os << "flags: ";

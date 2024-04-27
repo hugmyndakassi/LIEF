@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef LIEF_MACHO_DYNAMIC_SYMBOL_COMMAND_H_
-#define LIEF_MACHO_DYNAMIC_SYMBOL_COMMAND_H_
-#include <iostream>
+#ifndef LIEF_MACHO_DYNAMIC_SYMBOL_COMMAND_H
+#define LIEF_MACHO_DYNAMIC_SYMBOL_COMMAND_H
+#include <ostream>
 #include <set>
 
 #include "LIEF/visibility.h"
@@ -53,12 +53,10 @@ class LIEF_API DynamicSymbolCommand : public LoadCommand {
 
   DynamicSymbolCommand* clone() const override;
 
-  virtual ~DynamicSymbolCommand();
+  ~DynamicSymbolCommand() override;
 
   void accept(Visitor& visitor) const override;
 
-  bool operator==(const DynamicSymbolCommand& rhs) const;
-  bool operator!=(const DynamicSymbolCommand& rhs) const;
 
   std::ostream& print(std::ostream& os) const override;
 
@@ -178,32 +176,32 @@ class LIEF_API DynamicSymbolCommand : public LoadCommand {
   static bool classof(const LoadCommand* cmd);
 
   private:
-  uint32_t idx_local_symbol_;
-  uint32_t nb_local_symbols_;
+  uint32_t idx_local_symbol_ = 0;
+  uint32_t nb_local_symbols_ = 0;
 
-  uint32_t idx_external_define_symbol_;
-  uint32_t nb_external_define_symbols_;
+  uint32_t idx_external_define_symbol_ = 0;
+  uint32_t nb_external_define_symbols_ = 0;
 
-  uint32_t idx_undefined_symbol_;
-  uint32_t nb_undefined_symbols_;
+  uint32_t idx_undefined_symbol_ = 0;
+  uint32_t nb_undefined_symbols_ = 0;
 
-  uint32_t toc_offset_;
-  uint32_t nb_toc_;
+  uint32_t toc_offset_ = 0;
+  uint32_t nb_toc_ = 0;
 
-  uint32_t module_table_offset_;
-  uint32_t nb_module_table_;
+  uint32_t module_table_offset_ = 0;
+  uint32_t nb_module_table_ = 0;
 
-  uint32_t external_reference_symbol_offset_;
-  uint32_t nb_external_reference_symbols_;
+  uint32_t external_reference_symbol_offset_ = 0;
+  uint32_t nb_external_reference_symbols_ = 0;
 
-  uint32_t indirect_sym_offset_;
-  uint32_t nb_indirect_symbols_;
+  uint32_t indirect_sym_offset_ = 0;
+  uint32_t nb_indirect_symbols_ = 0;
 
-  uint32_t external_relocation_offset_;
-  uint32_t nb_external_relocations_;
+  uint32_t external_relocation_offset_ = 0;
+  uint32_t nb_external_relocations_ = 0;
 
-  uint32_t local_relocation_offset_;
-  uint32_t nb_local_relocations_;
+  uint32_t local_relocation_offset_ = 0;
+  uint32_t nb_local_relocations_ = 0;
 
   std::vector<Symbol*> indirect_symbols_;
 };

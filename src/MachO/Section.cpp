@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@
 #include <iterator>
 
 #include "logging.hpp"
-#include "LIEF/exception.hpp"
+
 #include "LIEF/MachO/hash.hpp"
 
 #include "LIEF/MachO/Section.hpp"
@@ -330,18 +330,7 @@ void Section::accept(Visitor& visitor) const {
   visitor.visit(*this);
 }
 
-bool Section::operator==(const Section& rhs) const {
-  if (this == &rhs) {
-    return true;
-  }
-  size_t hash_lhs = Hash::hash(*this);
-  size_t hash_rhs = Hash::hash(rhs);
-  return hash_lhs == hash_rhs;
-}
 
-bool Section::operator!=(const Section& rhs) const {
-  return !(*this == rhs);
-}
 
 
 std::ostream& operator<<(std::ostream& os, const Section& section) {

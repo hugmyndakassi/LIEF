@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@
 
 #include "LIEF/BinaryStream/VectorStream.hpp"
 #include "LIEF/BinaryStream/SpanStream.hpp"
+#include "LIEF/BinaryStream/MemoryStream.hpp"
 
 #include "LIEF/MachO/Binary.hpp"
 #include "LIEF/MachO/BinaryParser.hpp"
@@ -61,6 +62,7 @@
 
 #include "MachO/Structures.hpp"
 #include "MachO/ChainedFixup.hpp"
+#include "MachO/ChainedBindingInfoList.hpp"
 
 #include "Object.tcc"
 
@@ -212,7 +214,12 @@ ok_error_t BinaryParser::parse_load_commands() {
     LIEF_WARN("Only the first #{:d} will be parsed", nbcmds);
   }
 
+  // Base address of the MachO file that is
+  // set as soon as we can
   uint32_t low_fileoff = -1U;
+  std::set<LOAD_COMMAND_TYPES> not_parsed;
+  int64_t imagebase = -1;
+
   for (size_t i = 0; i < nbcmds; ++i) {
     const auto command = stream_->peek<details::load_command>(loadcommands_offset);
     if (!command) {
@@ -220,7 +227,9 @@ ok_error_t BinaryParser::parse_load_commands() {
     }
 
     std::unique_ptr<LoadCommand> load_command;
-    switch (static_cast<LOAD_COMMAND_TYPES>(command->cmd)) {
+    const auto cmd_type = static_cast<LOAD_COMMAND_TYPES>(command->cmd);
+
+    switch (cmd_type) {
 
       // ===============
       // Segment command
@@ -251,9 +260,31 @@ ok_error_t BinaryParser::parse_load_commands() {
           binary_->offset_seg_[segment->file_offset()] = segment;
           binary_->segments_.push_back(segment);
 
+          if (segment->name() == "__TEXT" && imagebase < 0) {
+            imagebase = segment->virtual_address();
+          }
+
+          if (MemoryStream::classof(*stream_)) {
+            // Link the memory stream with our
+            // binary object so that is can translate virtual address to offset
+            static_cast<MemoryStream&>(*stream_).binary(*binary_);
+          }
+
           if (segment->file_size() > 0) {
-            if (!stream_->peek_data(segment->data_, segment->file_offset(), segment->file_size())) {
-              LIEF_ERR("Segment {}: content corrupted!", segment->name());
+            if (MemoryStream::classof(*stream_)) {
+              auto& memstream = static_cast<MemoryStream&>(*stream_);
+              uintptr_t segment_va = segment->virtual_address();
+              if (imagebase >= 0 && segment_va >= static_cast<uint64_t>(imagebase)) {
+                segment_va -= static_cast<uint64_t>(imagebase);
+              }
+
+              uintptr_t address = memstream.base_address() + segment_va;
+              const auto* p = reinterpret_cast<const uint8_t*>(address);
+              segment->data_ = {p, p + segment->file_size()};
+            } else {
+              if (!stream_->peek_data(segment->data_, segment->file_offset(), segment->file_size())) {
+                LIEF_ERR("Segment {}: content corrupted!", segment->name());
+              }
             }
           }
 
@@ -321,7 +352,7 @@ ok_error_t BinaryParser::parse_load_commands() {
           auto* lib = load_command->as<DylibCommand>();
           lib->name(*name);
           binary_->libraries_.push_back(lib);
-          if (static_cast<LOAD_COMMAND_TYPES>(command->cmd) != LOAD_COMMAND_TYPES::LC_ID_DYLIB) {
+          if (cmd_type != LOAD_COMMAND_TYPES::LC_ID_DYLIB) {
             binding_libs_.push_back(lib);
           }
           break;
@@ -581,7 +612,7 @@ ok_error_t BinaryParser::parse_load_commands() {
           /*
            * DO NOT FORGET TO UPDATE VersionMin::classof
            */
-          LIEF_DEBUG("[+] Parsing {}", to_string(static_cast<LOAD_COMMAND_TYPES>(command->cmd)));
+          LIEF_DEBUG("[+] Parsing {}", to_string(cmd_type));
 
           const auto cmd = stream_->peek<details::version_min_command>(loadcommands_offset);
           if (!cmd) {
@@ -600,7 +631,7 @@ ok_error_t BinaryParser::parse_load_commands() {
           /*
            * DO NOT FORGET TO UPDATE BuildVersion::classof
            */
-          LIEF_DEBUG("[+] Parsing {}", to_string(static_cast<LOAD_COMMAND_TYPES>(command->cmd)));
+          LIEF_DEBUG("[+] Parsing {}", to_string(cmd_type));
 
           const auto cmd = stream_->peek<details::build_version_command>(loadcommands_offset);
           if (!cmd) {
@@ -829,7 +860,7 @@ ok_error_t BinaryParser::parse_load_commands() {
           /*
            * DO NOT FORGET TO UPDATE EncryptionInfo::classof
            */
-          LIEF_DEBUG("[+] Parsing {}", to_string(static_cast<LOAD_COMMAND_TYPES>(command->cmd)));
+          LIEF_DEBUG("[+] Parsing {}", to_string(cmd_type));
           const auto cmd = stream_->peek<details::encryption_info_command>(loadcommands_offset);
           if (!cmd) {
             LIEF_ERR("Can't parse encryption_info_command");
@@ -847,7 +878,7 @@ ok_error_t BinaryParser::parse_load_commands() {
           /*
            * DO NOT FORGET TO UPDATE FilesetCommand::classof
            */
-          LIEF_DEBUG("[+] Parsing {}", to_string(static_cast<LOAD_COMMAND_TYPES>(command->cmd)));
+          LIEF_DEBUG("[+] Parsing {}", to_string(cmd_type));
 
           const auto cmd = stream_->peek<details::fileset_entry_command>(loadcommands_offset);
           if (!cmd) {
@@ -887,20 +918,28 @@ ok_error_t BinaryParser::parse_load_commands() {
            * with the BinaryParser constructor
            */
           const size_t current_pos = stream_->pos();
+          if (!visited_.insert(cmd->fileoff).second) {
+            break;
+          }
+
           stream_->setpos(cmd->fileoff);
           BinaryParser bp;
-          bp.stream_ = std::move(stream_);
-          bp.config_ = config_;
+          bp.binary_  = std::unique_ptr<Binary>(new Binary{});
+          bp.stream_  = std::move(stream_);
+          bp.config_  = config_;
+          bp.visited_ = visited_;
+
           if (!bp.init_and_parse()) {
             LIEF_WARN("Parsing the Binary fileset raised error.");
           }
 
           stream_ = std::move(bp.stream_);
           stream_->setpos(current_pos);
+          visited_ = std::move(bp.visited_);
 
           if (bp.binary_ != nullptr) {
             std::unique_ptr<Binary> filset_bin = std::move(bp.binary_);
-            filset_bin->name_ = *entry_name;
+            filset_bin->fileset_name_ = *entry_name;
             binary_->filesets_.push_back(std::move(filset_bin));
           }
           break;
@@ -927,6 +966,12 @@ ok_error_t BinaryParser::parse_load_commands() {
           }
           LIEF_DEBUG("LC_DYLD_CHAINED_FIXUPS payload in '{}'", lnk->name());
           span<uint8_t> content = lnk->writable_content();
+
+          if (static_cast<int32_t>(chained->data_size()) < 0 ||
+              static_cast<int32_t>(chained->data_offset()) < 0) {
+            LIEF_WARN("LC_DYLD_CHAINED_FIXUPS payload is corrupted");
+            break;
+          }
 
           if ((chained->data_offset() + chained->data_size()) > (lnk->file_offset() + content.size())) {
             LIEF_WARN("LC_DYLD_CHAINED_FIXUPS payload does not fit in the '{}' segments",
@@ -996,7 +1041,9 @@ ok_error_t BinaryParser::parse_load_commands() {
 
       default:
         {
-          LIEF_WARN("Command '{}' not parsed!", to_string(static_cast<LOAD_COMMAND_TYPES>(command->cmd)));
+          if (not_parsed.insert(cmd_type).second) {
+            LIEF_WARN("Command '{}' not parsed!", to_string(cmd_type));
+          }
           load_command = std::make_unique<LoadCommand>(*command);
         }
     }
@@ -1004,6 +1051,7 @@ ok_error_t BinaryParser::parse_load_commands() {
     if (load_command != nullptr) {
       if (!stream_->peek_data(load_command->original_data_, loadcommands_offset, command->cmdsize)) {
         LIEF_ERR("Can't read the raw data of the load command");
+        load_command->size_ = 0;
       }
       load_command->command_offset(loadcommands_offset);
       binary_->commands_.push_back(std::move(load_command));
@@ -1143,6 +1191,12 @@ ok_error_t BinaryParser::parse_dyldinfo_rebases() {
 
   if (offset == 0 || size == 0) {
     return ok();
+  }
+
+  if (static_cast<int32_t>(offset) < 0 ||
+      static_cast<int32_t>(size)   < 0) {
+    LIEF_WARN("LC_DYLD_INFO.rebases payload is corrupted");
+    return make_error_code(lief_errors::read_out_of_bound);
   }
 
   SegmentCommand* linkedit = binary_->segment_from_offset(offset);
@@ -1377,6 +1431,12 @@ ok_error_t BinaryParser::parse_dyldinfo_generic_bind() {
 
   if (offset == 0 || size == 0) {
     return ok();
+  }
+
+  if (static_cast<int32_t>(offset) < 0 ||
+      static_cast<int32_t>(size)   < 0) {
+    LIEF_WARN("LC_DYLD_INFO.binding payload is corrupted");
+    return make_error_code(lief_errors::read_out_of_bound);
   }
 
   SegmentCommand* linkedit = binary_->segment_from_offset(offset);
@@ -1625,6 +1685,10 @@ ok_error_t BinaryParser::parse_dyldinfo_generic_bind() {
             case BIND_SUBOPCODE_THREADED::BIND_SUBOPCODE_THREADED_APPLY:
               {
                 uint64_t delta = 0;
+                if (segment_idx >= segments.size()) {
+                  LIEF_ERR("Wrong index ({:d})", segment_idx);
+                  return make_error_code(lief_errors::corrupted);
+                }
                 const SegmentCommand& current_segment = segments[segment_idx];
                 do {
                   const uint64_t address = current_segment.virtual_address() + segment_offset;
@@ -1678,12 +1742,19 @@ ok_error_t BinaryParser::parse_dyldinfo_generic_bind() {
               }
             case BIND_SUBOPCODE_THREADED::BIND_SUBOPCODE_THREADED_SET_BIND_ORDINAL_TABLE_SIZE_ULEB:
               {
+                // Maxium number of elements according to dyld's MachOAnalyzer.cpp
+                static constexpr size_t MAX_COUNT = 65535;
                 auto val = stream_->read_uleb128();
                 if (!val) {
                   LIEF_ERR("Can't read BIND_SUBOPCODE_THREADED_SET_BIND_ORDINAL_TABLE_SIZE_ULEB count");
                   break;
                 }
                 count = *val;
+                if (count > MAX_COUNT) {
+                  LIEF_ERR("BIND_SUBOPCODE_THREADED_SET_BIND_ORDINAL_TABLE_SIZE_ULEB"
+                           "count is too large ({})", count);
+                  break;
+                }
                 ordinal_table_size = count + 1; // the +1 comes from: 'ld64 wrote the wrong value here and we need to offset by 1 for now.'
                 use_threaded_rebase_bind = true;
                 ordinal_table.reserve(ordinal_table_size);
@@ -1722,6 +1793,12 @@ ok_error_t BinaryParser::parse_dyldinfo_weak_bind() {
 
   if (offset == 0 || size == 0) {
     return ok();
+  }
+
+  if (static_cast<int32_t>(offset) < 0 ||
+      static_cast<int32_t>(size)   < 0) {
+    LIEF_WARN("LC_DYLD_INFO.weak_bind payload is corrupted");
+    return make_error_code(lief_errors::read_out_of_bound);
   }
 
   SegmentCommand* linkedit = binary_->segment_from_offset(offset);
@@ -1965,6 +2042,12 @@ ok_error_t BinaryParser::parse_dyldinfo_lazy_bind() {
 
   if (offset == 0 || size == 0) {
     return ok();
+  }
+
+  if (static_cast<int32_t>(offset) < 0 ||
+      static_cast<int32_t>(size)   < 0) {
+    LIEF_WARN("LC_DYLD_INFO.lazy payload is corrupted");
+    return make_error_code(lief_errors::read_out_of_bound);
   }
 
   SegmentCommand* linkedit = binary_->segment_from_offset(offset);
@@ -2267,7 +2350,8 @@ ok_error_t BinaryParser::parse_chained_payload(SpanStream& stream) {
   if (auto res = stream.peek<details::dyld_chained_fixups_header>()) {
     header = *res;
   } else {
-    LIEF_WARN("Can't read dyld_chained_fixups_header: {}", get_error(res).message());
+    LIEF_WARN("Can't read dyld_chained_fixups_header: {}",
+              to_string(get_error(res)));
     return make_error_code(lief_errors::read_error);
   }
 
@@ -2333,14 +2417,16 @@ ok_error_t BinaryParser::parse_chained_import(const details::dyld_chained_fixups
           if (auto res = stream.read<details::dyld_chained_import>()) {
             import = *res;
           } else {
-            LIEF_WARN("Can't read dyld_chained_import #{}: {}", i, get_error(res).message());
+            LIEF_WARN("Can't read dyld_chained_import #{}: {}", i,
+                      to_string(get_error(res)));
             break;
           }
           LIEF_DEBUG("dyld chained import[{}]", i);
           if (auto res = symbol_pool.peek_string_at(import.name_offset)) {
             symbol_name = std::move(*res);
           } else {
-            LIEF_WARN("Can't read dyld_chained_import.name #{}: {}", i, get_error(res).message());
+            LIEF_WARN("Can't read dyld_chained_import.name #{}: {}", i,
+                      to_string(get_error(res)));
             break;
           }
           int32_t lib_ordinal = 0;
@@ -2363,13 +2449,15 @@ ok_error_t BinaryParser::parse_chained_import(const details::dyld_chained_fixups
           if (auto res = stream.read<details::dyld_chained_import_addend>()) {
             import = *res;
           } else {
-            LIEF_WARN("Can't read dyld_chained_import_addend #{}: {}", i, get_error(res).message());
+            LIEF_WARN("Can't read dyld_chained_import_addend #{}: {}", i,
+                      to_string(get_error(res)));
             break;
           }
           if (auto res = symbol_pool.peek_string_at(import.name_offset)) {
             symbol_name = std::move(*res);
           } else {
-            LIEF_WARN("Can't read dyld_chained_import_addend.name #{}: {}", i, get_error(res).message());
+            LIEF_WARN("Can't read dyld_chained_import_addend.name #{}: {}", i,
+                      to_string(get_error(res)));
             break;
           }
           int32_t lib_ordinal = 0;
@@ -2392,13 +2480,15 @@ ok_error_t BinaryParser::parse_chained_import(const details::dyld_chained_fixups
           if (auto res = stream.read<details::dyld_chained_import_addend64>()) {
             import = *res;
           } else {
-            LIEF_WARN("Can't read dyld_chained_import_addend64 #{}: {}", i, get_error(res).message());
+            LIEF_WARN("Can't read dyld_chained_import_addend64 #{}: {}", i,
+                      to_string(get_error(res)));
             break;
           }
           if (auto res = symbol_pool.peek_string_at(import.name_offset)) {
             symbol_name = std::move(*res);
           } else {
-            LIEF_WARN("Can't read dyld_chained_import_addend64.name #{}: {}", i, get_error(res).message());
+            LIEF_WARN("Can't read dyld_chained_import_addend64.name #{}: {}", i,
+                      to_string(get_error(res)));
             break;
           }
           int32_t lib_ordinal = 0;
@@ -2429,8 +2519,9 @@ ok_error_t BinaryParser::parse_chained_fixup(const details::dyld_chained_fixups_
   if (auto res = stream.read<details::dyld_chained_starts_in_image>()) {
     starts = *res;
   } else {
-    LIEF_WARN("Can't read dyld_chained_starts_in_image: {}", get_error(res).message());
-    return res.error();
+    LIEF_WARN("Can't read dyld_chained_starts_in_image: {}",
+              to_string(get_error(res)));
+    return make_error_code(res.error());
   }
 
   LIEF_DEBUG("chained starts in image");
@@ -2449,7 +2540,7 @@ ok_error_t BinaryParser::parse_chained_fixup(const details::dyld_chained_fixups_
       seg_info_offset = *res;
     } else {
       LIEF_WARN("Can't read dyld_chained_starts_in_image.seg_info_offset[#{}]: {}",
-                seg_idx, get_error(res).message());
+                seg_idx, to_string(get_error(res)));
       break;
     }
 
@@ -2482,14 +2573,15 @@ ok_error_t BinaryParser::parse_fixup_seg(SpanStream& stream, uint32_t seg_info_o
   if (auto res = stream.peek<decltype(seg_info)>(offset)) {
     seg_info = *res;
   } else {
-    LIEF_WARN("Can't read dyld_chained_starts_in_segment for #{}: {}", seg_idx, get_error(res).message());
-    return res.error();
+    LIEF_WARN("Can't read dyld_chained_starts_in_segment for #{}: {}", seg_idx,
+              to_string(get_error(res)));
+    return make_error_code(res.error());
   }
   auto res_seg_stream = stream.slice(offset);
   if (!res_seg_stream) {
     LIEF_ERR("Can't slice dyld_chained_starts_in_segment #{}: {}",
-              seg_idx, get_error(res_seg_stream).message());
-    return res_seg_stream.error();
+              seg_idx, to_string(get_error(res_seg_stream)));
+    return make_error_code(res_seg_stream.error());
   }
   SpanStream seg_stream = std::move(*res_seg_stream);
   seg_stream.read<details::dyld_chained_starts_in_segment>();
@@ -2564,7 +2656,7 @@ template<class MACHO_T>
 ok_error_t BinaryParser::do_fixup(DYLD_CHAINED_FORMAT fmt, int32_t ord, const std::string& symbol_name,
                                   int64_t addend, bool is_weak)
 {
-  auto binding_info = std::make_unique<ChainedBindingInfo>(fmt, is_weak);
+  auto binding_info = std::make_unique<ChainedBindingInfoList>(fmt, is_weak);
   binding_info->addend_ = addend;
   binding_info->library_ordinal_ = ord;
   if (0 < ord && static_cast<size_t>(ord) <= binding_libs_.size()) {
@@ -2600,7 +2692,7 @@ ok_error_t BinaryParser::do_fixup(DYLD_CHAINED_FORMAT fmt, int32_t ord, const st
     symbol->binding_info_ = binding_info.get();
     binary_->symbols_.push_back(std::move(symbol));
   }
-  chained_fixups_->bindings_.push_back(std::move(binding_info));
+  chained_fixups_->internal_bindings_.push_back(std::move(binding_info));
   return ok();
 }
 
@@ -2675,7 +2767,7 @@ result<uint64_t> BinaryParser::next_chain(uint64_t chain_offset,
           chain = *res;
         } else {
           LIEF_ERR("Can't read the dyld chain at 0x{:x}", chain_offset);
-          return res.error();
+          return make_error_code(res.error());
         }
 
         if (chain.rebase.next == 0) {
@@ -2692,7 +2784,7 @@ result<uint64_t> BinaryParser::next_chain(uint64_t chain_offset,
           chain = *res;
         } else {
           LIEF_ERR("Can't read the dyld chain at 0x{:x}", chain_offset);
-          return res.error();
+          return make_error_code(res.error());
         }
 
         if (chain.rebase.next == 0) {
@@ -2707,7 +2799,7 @@ result<uint64_t> BinaryParser::next_chain(uint64_t chain_offset,
           chain = *res;
         } else {
           LIEF_ERR("Can't read the dyld chain at 0x{:x}", chain_offset);
-          return res.error();
+          return make_error_code(res.error());
         }
 
         if (chain.rebase.next == 0) {
@@ -2742,7 +2834,7 @@ result<uint64_t> BinaryParser::next_chain(uint64_t chain_offset,
           chain = *res;
         } else {
           LIEF_ERR("Can't read the dyld chain at 0x{:x}", chain_offset);
-          return res.error();
+          return make_error_code(res.error());
         }
 
         if (chain.next == 0) {
@@ -2758,7 +2850,7 @@ result<uint64_t> BinaryParser::next_chain(uint64_t chain_offset,
           chain = *res;
         } else {
           LIEF_ERR("Can't read the dyld chain at 0x{:x}", chain_offset);
-          return res.error();
+          return make_error_code(res.error());
         }
 
         if (chain.next == 0) {
@@ -2794,13 +2886,13 @@ ok_error_t BinaryParser::process_fixup(SegmentCommand& segment, uint64_t chain_o
           fixup = *res;
         } else {
           LIEF_ERR("Can't read the dyld chain at 0x{:x}", chain_offset);
-          return res.error();
+          return make_error_code(res.error());
         }
 
         auto is_ok = do_chained_fixup(segment, chain_offset, seg_info, fixup);
         if (!is_ok) {
           LIEF_WARN("Can't process the fixup {} - 0x{:x}", segment.name(), chain_offset);
-          return is_ok.error();
+          return make_error_code(is_ok.error());
         }
         return ok();
       }
@@ -2812,12 +2904,12 @@ ok_error_t BinaryParser::process_fixup(SegmentCommand& segment, uint64_t chain_o
           fixup = *res;
         } else {
           LIEF_ERR("Can't read the dyld chain at 0x{:x}", chain_offset);
-          return res.error();
+          return make_error_code(res.error());
         }
         auto is_ok = do_chained_fixup(segment, chain_offset, seg_info, fixup);
         if (!is_ok) {
           LIEF_WARN("Can't process the fixup {} - 0x{:x}", segment.name(), chain_offset);
-          return is_ok.error();
+          return make_error_code(is_ok.error());
         }
         return ok();
       }
@@ -2828,12 +2920,12 @@ ok_error_t BinaryParser::process_fixup(SegmentCommand& segment, uint64_t chain_o
           fixup = *res;
         } else {
           LIEF_ERR("Can't read the dyld chain at 0x{:x}", chain_offset);
-          return res.error();
+          return make_error_code(res.error());
         }
         auto is_ok = do_chained_fixup(segment, chain_offset, seg_info, fixup);
         if (!is_ok) {
           LIEF_WARN("Can't process the fixup {} - 0x{:x}", segment.name(), chain_offset);
-          return is_ok.error();
+          return make_error_code(is_ok.error());
         }
         return ok();
       }
@@ -2870,28 +2962,36 @@ ok_error_t BinaryParser::do_chained_fixup(SegmentCommand& segment, uint32_t chai
   static constexpr const char DPREFIX[] = "          ";
   const auto ptr_fmt = static_cast<DYLD_CHAINED_PTR_FORMAT>(seg_info.pointer_format);
   const uint64_t imagebase = binary_->imagebase();
-  const uint64_t address = imagebase + chain_offset;
 
+  const uint64_t address = imagebase + chain_offset;
   if (fixup.auth_rebase.auth) {
     if (fixup.auth_bind.bind) {
       uint32_t bind_ordinal = ptr_fmt == DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_USERLAND24 ?
                               fixup.auth_bind24.ordinal :
                               fixup.auth_bind.ordinal;
-      if (bind_ordinal >= chained_fixups_->bindings_.size()) {
-        LIEF_WARN("Out of range bind ordinal {} (max {})", bind_ordinal, chained_fixups_->bindings_.size());
+      if (bind_ordinal >= chained_fixups_->internal_bindings_.size()) {
+        LIEF_WARN("Out of range bind ordinal {} (max {})",
+                  bind_ordinal, chained_fixups_->internal_bindings_.size());
         return make_error_code(lief_errors::read_error);
       }
-      std::unique_ptr<ChainedBindingInfo>& binding = chained_fixups_->bindings_[bind_ordinal];
-      binding->offset_          = chain_offset;
-      binding->ptr_format_      = ptr_fmt;
-      binding->segment_         = &segment;
+      std::unique_ptr<ChainedBindingInfoList>& local_binding = chained_fixups_->internal_bindings_[bind_ordinal];
+      local_binding->segment_    = &segment;
+      local_binding->ptr_format_ = ptr_fmt;
+      local_binding->set(fixup.auth_bind);
+
+      chained_fixups_->all_bindings_.push_back(std::make_unique<ChainedBindingInfo>(*local_binding));
+      auto& binding_extra_info = chained_fixups_->all_bindings_.back();
+      copy_from(*binding_extra_info, *local_binding);
+
+      binding_extra_info->offset_ = chain_offset;
       /*
        * We use the BindingInfo::address_ to store the imagebase
        * to avoid creating a new attribute in ChainedBindingInfo
        */
-      binding->address_         = imagebase;
-      binding->set(fixup.auth_bind);
-      if (Symbol* sym = binding->symbol()) {
+      binding_extra_info->address_ = imagebase;
+      local_binding->elements_.push_back(binding_extra_info.get());
+
+      if (Symbol* sym = binding_extra_info->symbol()) {
         LIEF_DEBUG("{}[  BIND] {}@0x{:x}: {} / sign ext: {:x}",
                    DPREFIX, segment.name(), address, sym->name(), fixup.sign_extended_addend());
         return ok();
@@ -2934,24 +3034,31 @@ ok_error_t BinaryParser::do_chained_fixup(SegmentCommand& segment, uint32_t chai
                               fixup.auth_bind24.ordinal :
                               fixup.auth_bind.ordinal;
 
-      if (bind_ordinal >= chained_fixups_->bindings_.size()) {
-        LIEF_WARN("Out of range bind ordinal {} (max {})", bind_ordinal, chained_fixups_->bindings_.size());
+      if (bind_ordinal >= chained_fixups_->internal_bindings_.size()) {
+        LIEF_WARN("Out of range bind ordinal {} (max {})",
+                  bind_ordinal, chained_fixups_->internal_bindings_.size());
         return make_error_code(lief_errors::read_error);
       }
 
-      std::unique_ptr<ChainedBindingInfo>& binding = chained_fixups_->bindings_[bind_ordinal];
-      binding->offset_          = chain_offset;
-      binding->ptr_format_      = ptr_fmt;
-      binding->segment_         = &segment;
+      std::unique_ptr<ChainedBindingInfoList>& local_binding = chained_fixups_->internal_bindings_[bind_ordinal];
+      local_binding->segment_    = &segment;
+      local_binding->ptr_format_ = ptr_fmt;
+      ptr_fmt == DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_USERLAND24 ?
+                 local_binding->set(fixup.auth_bind24) : local_binding->set(fixup.auth_bind);
+
+      chained_fixups_->all_bindings_.push_back(std::make_unique<ChainedBindingInfo>(*local_binding));
+      auto& binding_extra_info = chained_fixups_->all_bindings_.back();
+      copy_from(*binding_extra_info, *local_binding);
+
+      binding_extra_info->offset_ = chain_offset;
       /*
        * We use the BindingInfo::address_ to store the imagebase
        * to avoid creating a new attribute in ChainedBindingInfo
        */
-      binding->address_         = imagebase;
-      ptr_fmt == DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_USERLAND24 ?
-                 binding->set(fixup.auth_bind24) : binding->set(fixup.auth_bind);
+      binding_extra_info->address_ = imagebase;
+      local_binding->elements_.push_back(binding_extra_info.get());
 
-      if (Symbol* sym = binding->symbol()) {
+      if (Symbol* sym = binding_extra_info->symbol()) {
         LIEF_DEBUG("{}[  BIND] {}@0x{:x}: {} / sign ext: {:x}",
                    DPREFIX, segment.name(), address, sym->name(), fixup.sign_extended_addend());
         return ok();
@@ -2965,8 +3072,9 @@ ok_error_t BinaryParser::do_chained_fixup(SegmentCommand& segment, uint32_t chai
 
   // See comment for: dyld_chained_ptr_generic64
   const uint64_t target = ptr_fmt == DYLD_CHAINED_PTR_FORMAT::PTR_64 ?
-                          fixup.unpack_target() + binary_->imagebase() :
-                          fixup.unpack_target() + binary_->imagebase();
+                          fixup.unpack_target() :
+                          fixup.unpack_target() + imagebase;
+
   auto reloc = std::make_unique<RelocationFixup>(ptr_fmt, imagebase);
   reloc->set(fixup.rebase);
   reloc->architecture_ = binary_->header().cpu_type();
@@ -3001,26 +3109,35 @@ ok_error_t BinaryParser::do_chained_fixup(SegmentCommand& segment, uint32_t chai
 {
   static constexpr const char DPREFIX[] = "          ";
   const auto ptr_fmt = static_cast<DYLD_CHAINED_PTR_FORMAT>(seg_info.pointer_format);
+  const uint64_t imagebase = binary_->imagebase();
 
-  const uint64_t address = binary_->imagebase() + chain_offset;
+  const uint64_t address = imagebase + chain_offset;
   if (fixup.bind.bind > 0) {
     const uint64_t ordinal = fixup.bind.ordinal;
-    if (ordinal >= chained_fixups_->bindings_.size()) {
-      LIEF_WARN("Out of range bind ordinal {} (max {})", ordinal, chained_fixups_->bindings_.size());
+    if (ordinal >= chained_fixups_->internal_bindings_.size()) {
+      LIEF_WARN("Out of range bind ordinal {} (max {})",
+                ordinal, chained_fixups_->internal_bindings_.size());
       return make_error_code(lief_errors::read_error);
     }
-    std::unique_ptr<ChainedBindingInfo>& binding = chained_fixups_->bindings_[ordinal];
 
-    binding->offset_          = chain_offset;
-    binding->ptr_format_      = ptr_fmt;
-    binding->segment_         = &segment;
+    std::unique_ptr<ChainedBindingInfoList>& local_binding = chained_fixups_->internal_bindings_[ordinal];
+    local_binding->segment_    = &segment;
+    local_binding->ptr_format_ = ptr_fmt;
+    local_binding->set(fixup.bind);
+
+    chained_fixups_->all_bindings_.push_back(std::make_unique<ChainedBindingInfo>(*local_binding));
+    auto& binding_extra_info = chained_fixups_->all_bindings_.back();
+    copy_from(*binding_extra_info, *local_binding);
+
+    binding_extra_info->offset_ = chain_offset;
     /*
      * We use the BindingInfo::address_ to store the imagebase
      * to avoid creating a new attribute in ChainedBindingInfo
      */
-    binding->address_ = binary_->imagebase();
-    binding->set(fixup.bind);
-    if (Symbol* sym = binding->symbol()) {
+    binding_extra_info->address_ = imagebase;
+    local_binding->elements_.push_back(binding_extra_info.get());
+
+    if (Symbol* sym = binding_extra_info->symbol()) {
       LIEF_DEBUG("{}[  BIND] {}@0x{:x}: {} / sign ext: {:x}",
                  DPREFIX, segment.name(), address, sym->name(), fixup.sign_extended_addend());
       return ok();
@@ -3046,9 +3163,9 @@ ok_error_t BinaryParser::do_chained_fixup(SegmentCommand& segment, uint32_t chai
    * Not sure if it really matters in our case
    */
   const uint64_t target = ptr_fmt == DYLD_CHAINED_PTR_FORMAT::PTR_64 ?
-                          fixup.unpack_target() + binary_->imagebase() :
-                          fixup.unpack_target() + binary_->imagebase();
-  auto reloc = std::make_unique<RelocationFixup>(ptr_fmt, binary_->imagebase());
+                          fixup.unpack_target() :
+                          fixup.unpack_target() + imagebase;
+  auto reloc = std::make_unique<RelocationFixup>(ptr_fmt, imagebase);
   reloc->set(fixup.rebase);
   reloc->architecture_ = binary_->header().cpu_type();
   reloc->segment_      = &segment;
@@ -3080,29 +3197,36 @@ ok_error_t BinaryParser::do_chained_fixup(SegmentCommand& segment, uint32_t chai
 {
   static constexpr const char DPREFIX[] = "          ";
   const auto ptr_fmt = static_cast<DYLD_CHAINED_PTR_FORMAT>(seg_info.pointer_format);
+  const uint64_t imagebase = binary_->imagebase();
 
-  const uint64_t address = binary_->imagebase() + chain_offset;
+  const uint64_t address = imagebase + chain_offset;
   if (fixup.bind.bind > 0) {
     const uint64_t ordinal = fixup.bind.ordinal;
 
-    if (ordinal >= chained_fixups_->bindings_.size()) {
-      LIEF_WARN("Out of range bind ordinal {} (max {})", ordinal, chained_fixups_->bindings_.size());
+    if (ordinal >= chained_fixups_->internal_bindings_.size()) {
+      LIEF_WARN("Out of range bind ordinal {} (max {})",
+                ordinal, chained_fixups_->internal_bindings_.size());
       return make_error_code(lief_errors::read_error);
     }
 
-    std::unique_ptr<ChainedBindingInfo>& binding = chained_fixups_->bindings_[ordinal];
+    std::unique_ptr<ChainedBindingInfoList>& local_binding = chained_fixups_->internal_bindings_[ordinal];
+    local_binding->segment_    = &segment;
+    local_binding->ptr_format_ = ptr_fmt;
+    local_binding->set(fixup.bind);
 
-    binding->offset_          = chain_offset;
-    binding->ptr_format_      = ptr_fmt;
-    binding->segment_         = &segment;
+    chained_fixups_->all_bindings_.push_back(std::make_unique<ChainedBindingInfo>(*local_binding));
+    auto& binding_extra_info = chained_fixups_->all_bindings_.back();
+    copy_from(*binding_extra_info, *local_binding);
+
+    binding_extra_info->offset_ = chain_offset;
     /*
      * We use the BindingInfo::address_ to store the imagebase
      * to avoid creating a new attribute in ChainedBindingInfo
      */
-    binding->address_ = binary_->imagebase();
-    binding->set(fixup.bind);
+    binding_extra_info->address_ = imagebase;
+    local_binding->elements_.push_back(binding_extra_info.get());
 
-    if (Symbol* sym = binding->symbol()) {
+    if (Symbol* sym = binding_extra_info->symbol()) {
       LIEF_DEBUG("{}[  BIND] {}@0x{:x}: {} / sign ext: {:x}",
                  DPREFIX, segment.name(), address, sym->name(), fixup.bind.addend);
       return ok();
@@ -3126,7 +3250,7 @@ ok_error_t BinaryParser::do_chained_fixup(SegmentCommand& segment, uint32_t chai
     reloc = std::make_unique<RelocationFixup>(ptr_fmt, fake_bias);
     reloc->set(fake_fixup);
   } else {
-    reloc = std::make_unique<RelocationFixup>(ptr_fmt, binary_->imagebase());
+    reloc = std::make_unique<RelocationFixup>(ptr_fmt, imagebase);
     reloc->set(fixup.rebase);
   }
 
@@ -3315,7 +3439,7 @@ ok_error_t BinaryParser::post_process(DynamicSymbolCommand& cmd) {
     }
 
     if (cmd.nb_external_define_symbols() > 0 &&
-        cmd.idx_external_define_symbol() <= isym  && isym < (cmd.idx_external_define_symbol() + cmd.nb_local_symbols()))
+        cmd.idx_external_define_symbol() <= isym  && isym < (cmd.idx_external_define_symbol() + cmd.nb_external_define_symbols()))
     {
       sym->category_ = Symbol::CATEGORY::EXTERNAL;
     }
@@ -3474,9 +3598,16 @@ ok_error_t BinaryParser::post_process(TwoLevelHints& cmd) {
 }
 
 
-
-
-
+/* This method is needed since the C++ copy constructor of ChainedBindingInfo
+ * does not (on purpose) copy the pointers associated with the object.
+ * Thus we need this helper to maker sure that in the context on the parser,
+ * the pointers are correctly copied.
+ */
+void BinaryParser::copy_from(ChainedBindingInfo& to, ChainedBindingInfo& from) {
+  to.segment_ = from.segment_;
+  to.symbol_  = from.symbol_;
+  to.library_ = from.library_;
+}
 
 }
 }

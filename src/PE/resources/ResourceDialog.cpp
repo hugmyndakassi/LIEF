@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,14 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <iomanip>
 #include <fstream>
 #include <iterator>
 #include <algorithm>
-#include <functional>
 #include <numeric>
 #include "logging.hpp"
-#include "LIEF/exception.hpp"
+
 #include "LIEF/PE/hash.hpp"
 #include "LIEF/utils.hpp"
 
@@ -50,8 +48,8 @@ ResourceDialog::ResourceDialog() :
   weight_{0},
   italic_{false},
   charset_{0},
-  lang_{RESOURCE_LANGS::LANG_NEUTRAL},
-  sublang_{RESOURCE_SUBLANGS::SUBLANG_DEFAULT}
+  lang_{0},
+  sublang_{0}
 {}
 
 
@@ -69,8 +67,8 @@ ResourceDialog::ResourceDialog(const details::pe_dialog_template_ext& header) :
   weight_{0},
   italic_{false},
   charset_{0},
-  lang_{RESOURCE_LANGS::LANG_NEUTRAL},
-  sublang_{RESOURCE_SUBLANGS::SUBLANG_DEFAULT}
+  lang_{0},
+  sublang_{0}
 {}
 
 
@@ -88,8 +86,8 @@ ResourceDialog::ResourceDialog(const details::pe_dialog_template& header) :
   weight_{0},
   italic_{false},
   charset_{0},
-  lang_{RESOURCE_LANGS::LANG_NEUTRAL},
-  sublang_{RESOURCE_SUBLANGS::SUBLANG_DEFAULT}
+  lang_{0},
+  sublang_{0}
 {}
 
 
@@ -174,19 +172,19 @@ ResourceDialog::it_const_items ResourceDialog::items() const {
 }
 
 
-RESOURCE_LANGS ResourceDialog::lang() const {
+uint32_t ResourceDialog::lang() const {
   return lang_;
 }
 
-RESOURCE_SUBLANGS ResourceDialog::sub_lang() const {
+uint32_t ResourceDialog::sub_lang() const {
   return sublang_;
 }
 
-void ResourceDialog::lang(RESOURCE_LANGS lang) {
+void ResourceDialog::lang(uint32_t lang) {
   lang_ = lang;
 }
 
-void ResourceDialog::sub_lang(RESOURCE_SUBLANGS sub_lang) {
+void ResourceDialog::sub_lang(uint32_t sub_lang) {
   sublang_ = sub_lang;
 }
 
@@ -267,18 +265,7 @@ void ResourceDialog::accept(Visitor& visitor) const {
   visitor.visit(*this);
 }
 
-bool ResourceDialog::operator==(const ResourceDialog& rhs) const {
-  if (this == &rhs) {
-    return true;
-  }
-  size_t hash_lhs = Hash::hash(*this);
-  size_t hash_rhs = Hash::hash(rhs);
-  return hash_lhs == hash_rhs;
-}
 
-bool ResourceDialog::operator!=(const ResourceDialog& rhs) const {
-  return !(*this == rhs);
-}
 
 
 std::ostream& operator<<(std::ostream& os, const ResourceDialog& dialog) {
@@ -320,7 +307,7 @@ std::ostream& operator<<(std::ostream& os, const ResourceDialog& dialog) {
   os << "Styles: "            << styles_str            << std::endl;
   os << "Dialog box styles: " << dialogbox_styles_str  << std::endl;
   os << "Extended styles: "   << ext_styles_str        << std::endl;
-  os << "Lang: "              << to_string(dialog.lang()) << " / " << to_string(dialog.sub_lang()) << std::endl;
+  os << "Lang: "              << dialog.lang() << " / " << dialog.sub_lang() << std::endl;
 
   if (dialog.is_extended()) {
     os << "Title: \"" << u16tou8(dialog.title()) << "\"" << std::endl;

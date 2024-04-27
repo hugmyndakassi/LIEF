@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 #include <iomanip>
 
 #include "logging.hpp"
-#include "LIEF/exception.hpp"
+
 
 #include "LIEF/PE/hash.hpp"
 
@@ -39,7 +39,7 @@ LangCodeItem::LangCodeItem(uint16_t type, std::u16string key) :
 {}
 
 LangCodeItem::LangCodeItem() :
-  key_{u8tou16("040c04B0")}
+  key_{*u8tou16("040c04B0")}
 {}
 
 uint16_t LangCodeItem::type() const {
@@ -60,27 +60,25 @@ CODE_PAGES LangCodeItem::code_page() const {
   return static_cast<CODE_PAGES>(std::stoul(u16tou8(key().substr(4, 8)), nullptr, 16));
 }
 
-RESOURCE_LANGS LangCodeItem::lang() const {
+uint32_t LangCodeItem::lang() const {
   if (key().length() != 8) {
     LIEF_WARN("{} is expected to be 8 lengthy", u16tou8(key()));
-    return static_cast<RESOURCE_LANGS>(0);
+    return 0;
   }
 
   uint64_t lang_id = std::stoul(u16tou8(key().substr(0, 4)), nullptr, 16);
-  auto lang = static_cast<RESOURCE_LANGS>(lang_id & 0x3ff);
-  return lang;
+  return ResourcesManager::lang_from_id(lang_id);
 
 }
 
-RESOURCE_SUBLANGS LangCodeItem::sublang() const {
+uint32_t LangCodeItem::sublang() const {
   if (key().length() != 8) {
     LIEF_WARN("{} is expected to be 8 lengthy", u16tou8(key()));
-    return static_cast<RESOURCE_SUBLANGS>(0);
+    return 0;
   }
 
   uint64_t lang_id = std::stoul(u16tou8(key().substr(0, 4)), nullptr, 16);
-  RESOURCE_SUBLANGS sublang = ResourcesManager::sub_lang(lang(), (lang_id >> 10));
-  return sublang;
+  return ResourcesManager::sublang_from_id(lang_id);
 }
 
 
@@ -102,22 +100,27 @@ void LangCodeItem::key(const std::u16string& key) {
 }
 
 void LangCodeItem::key(const std::string& key) {
-  key_ = u8tou16(key);
+  if (auto res = u8tou16(key)) {
+    key_ = std::move(*res);
+  } else {
+    LIEF_WARN("{} can't be converted to a UTF-16 string", key);
+  }
 }
 
 void LangCodeItem::code_page(CODE_PAGES code_page) {
   //TODO: Check
   std::stringstream ss;
   ss << std::setfill('0') << std::setw(sizeof(uint16_t) * 2) << std::hex << static_cast<uint16_t>(code_page);
-  std::u16string cp = u8tou16(ss.str());
-  std::u16string key = this->key();
-  key.replace(4, 4, cp);
-  this->key(key);
-
+  if (auto res = u8tou16(ss.str())) {
+    std::u16string key = this->key();
+    key.replace(4, 4, *res);
+    this->key(key);
+  } else {
+    LIEF_WARN("Code page error");
+  }
 }
 
-void LangCodeItem::lang(RESOURCE_LANGS lang) {
-  //TODO: Check
+void LangCodeItem::lang(uint32_t lang) {
   uint64_t lang_id = std::stoul(u16tou8(key().substr(0, 4)), nullptr, 16);
   lang_id &= ~static_cast<uint64_t>(0x3ff);
   lang_id |= static_cast<uint16_t>(lang);
@@ -125,14 +128,16 @@ void LangCodeItem::lang(RESOURCE_LANGS lang) {
   std::stringstream ss;
   ss << std::setfill('0') << std::setw(sizeof(uint16_t) * 2) << std::hex << static_cast<uint16_t>(lang_id);
 
-  std::u16string langid = u8tou16(ss.str());
-  std::u16string key = this->key();
-  key.replace(0, 4, langid);
-  this->key(key);
-
+  if (auto res = u8tou16(ss.str())) {
+    std::u16string key = this->key();
+    key.replace(0, 4, *res);
+    this->key(key);
+  } else {
+    LIEF_WARN("lang error");
+  }
 }
 
-void LangCodeItem::sublang(RESOURCE_SUBLANGS lang) {
+void LangCodeItem::sublang(uint32_t lang) {
   //TODO: Check
   uint64_t lang_id = std::stoul(u16tou8(key().substr(0, 4)), nullptr, 16);
   uint64_t mask = (static_cast<uint64_t>(-1) >> 16) << 16;
@@ -144,10 +149,13 @@ void LangCodeItem::sublang(RESOURCE_SUBLANGS lang) {
   std::stringstream ss;
   ss << std::setfill('0') << std::setw(sizeof(uint16_t) * 2) << std::hex << static_cast<uint16_t>(lang_id);
 
-  std::u16string langid = u8tou16(ss.str());
-  std::u16string key = this->key();
-  key.replace(0, 4, langid);
-  this->key(key);
+  if (auto res = u8tou16(ss.str())) {
+    std::u16string key = this->key();
+    key.replace(0, 4, *res);
+    this->key(key);
+  } else {
+    LIEF_WARN("lang error");
+  }
 }
 
 
@@ -161,27 +169,16 @@ void LangCodeItem::accept(Visitor& visitor) const {
 }
 
 
-bool LangCodeItem::operator==(const LangCodeItem& rhs) const {
-  if (this == &rhs) {
-    return true;
-  }
-  size_t hash_lhs = Hash::hash(*this);
-  size_t hash_rhs = Hash::hash(rhs);
-  return hash_lhs == hash_rhs;
-}
 
-bool LangCodeItem::operator!=(const LangCodeItem& rhs) const {
-  return !(*this == rhs);
-}
 
 std::ostream& operator<<(std::ostream& os, const LangCodeItem& item) {
   os << std::hex << std::left;
   os << std::setw(8) << std::setfill(' ') << "type:" << item.type()         << std::endl;
   os << std::setw(8) << std::setfill(' ') << "key:"  << u16tou8(item.key())
      << ": ("
-     << to_string(item.lang())
+     << item.lang()
      << " - "
-     <<  to_string(item.sublang())
+     << item.sublang()
      << " - "
      << std::hex << to_string(item.code_page()) << ")" << std::endl;
   os << std::setw(8) << std::setfill(' ') << "Items: " << std::endl;

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,11 +15,12 @@
  */
 
 #include <utility>
+#include <climits>
 
 #include "LIEF/OAT/Class.hpp"
-#include "LIEF/OAT/Method.hpp"
 #include "LIEF/OAT/hash.hpp"
 #include "LIEF/OAT/EnumToString.hpp"
+#include "LIEF/DEX/Method.hpp"
 
 #include "LIEF/DEX/Class.hpp"
 
@@ -91,7 +92,7 @@ size_t Class::index() const {
   if (has_dex_class()) {
     return dex_class()->index();
   }
-  return -1ull;
+  return SIZE_MAX;
 }
 
 const std::vector<uint32_t>& Class::bitmap() const {
@@ -148,7 +149,7 @@ bool Class::is_quickened(uint32_t relative_index) const {
 
 uint32_t Class::method_offsets_index(const DEX::Method& m) const {
   if (!has_dex_class()) {
-    return -1u;
+    return UINT_MAX;
   }
   const DEX::Class& cls = *dex_class();
 
@@ -160,7 +161,7 @@ uint32_t Class::method_offsets_index(const DEX::Method& m) const {
 
   if (it_method_index == std::end(methods)) {
     LIEF_ERR("Can't find '{}' in {}", m.name(), cls.fullname());
-    return -1u;
+    return UINT_MAX;
   }
 
   uint32_t relative_index = std::distance(std::begin(methods), it_method_index);
@@ -170,7 +171,7 @@ uint32_t Class::method_offsets_index(const DEX::Method& m) const {
 uint32_t Class::method_offsets_index(uint32_t relative_index) const {
 
   if (!is_quickened(relative_index) || type() == OAT_CLASS_TYPES::OAT_CLASS_NONE_COMPILED) {
-    return -1u;
+    return UINT_MAX;
   }
 
   if (type() == OAT_CLASS_TYPES::OAT_CLASS_ALL_COMPILED) {
@@ -192,12 +193,12 @@ uint32_t Class::method_offsets_index(uint32_t relative_index) const {
     return count;
   }
 
-  return -1u;
+  return UINT_MAX;
 }
 
 uint32_t Class::relative_index(const DEX::Method& m) const {
   if (!has_dex_class()) {
-    return -1u;
+    return UINT_MAX;
   }
   const DEX::Class& cls = *dex_class();
 
@@ -209,7 +210,7 @@ uint32_t Class::relative_index(const DEX::Method& m) const {
 
   if (it_method_index == std::end(methods)) {
     LIEF_ERR("Can't find '{}' in {}", m.name(), cls.fullname());
-    return -1u;
+    return UINT_MAX;
   }
 
   return std::distance(std::begin(methods), it_method_index);
@@ -217,7 +218,7 @@ uint32_t Class::relative_index(const DEX::Method& m) const {
 
 uint32_t Class::relative_index(uint32_t method_absolute_index) const {
   if (!has_dex_class()) {
-    return -1u;
+    return UINT_MAX;
   }
   const DEX::Class& cls = *dex_class();
 
@@ -229,7 +230,7 @@ uint32_t Class::relative_index(uint32_t method_absolute_index) const {
 
   if (it_method_index == std::end(methods)) {
     LIEF_ERR("Can't find find method with index {:d} in {}", method_absolute_index, cls.fullname());
-    return -1u;
+    return UINT_MAX;
   }
 
   return std::distance(std::begin(methods), it_method_index);
@@ -241,18 +242,7 @@ void Class::accept(Visitor& visitor) const {
   visitor.visit(*this);
 }
 
-bool Class::operator==(const Class& rhs) const {
-  if (this == &rhs) {
-    return true;
-  }
-  size_t hash_lhs = Hash::hash(*this);
-  size_t hash_rhs = Hash::hash(rhs);
-  return hash_lhs == hash_rhs;
-}
 
-bool Class::operator!=(const Class& rhs) const {
-  return !(*this == rhs);
-}
 
 std::ostream& operator<<(std::ostream& os, const Class& cls) {
   os << cls.fullname() << " - "

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@
 #include "logging.hpp"
 
 #include "third-party/utfcpp.hpp"
-#include "LIEF/exception.hpp"
+
 
 #include "LIEF/PE/Builder.hpp"
 #include "LIEF/PE/ResourceData.hpp"
@@ -86,21 +86,21 @@ Builder& Builder::build_dos_stub(bool flag) {
   return *this;
 }
 
-
 void Builder::write(const std::string& filename) const {
   std::ofstream output_file{filename, std::ios::out | std::ios::binary | std::ios::trunc};
   if (!output_file) {
     LIEF_ERR("Can't write in {}", filename);
     return;
   }
+  write(output_file);
+}
 
+void Builder::write(std::ostream& os) const {
   std::vector<uint8_t> content;
   ios_.get(content);
   std::copy(std::begin(content), std::end(content),
-            std::ostreambuf_iterator<char>(output_file));
-
+            std::ostreambuf_iterator<char>(os));
 }
-
 
 ok_error_t Builder::build() {
   LIEF_DEBUG("Build process started");
@@ -202,7 +202,7 @@ ok_error_t Builder::build_relocation() {
   //    reinterpret_cast<uint8_t*>(&relocHeader),
   //    reinterpret_cast<uint8_t*>(&relocHeader) + sizeof(pe_base_relocation_block));
 
-  Section new_relocation_section{".l" + std::to_string(static_cast<uint32_t>(DATA_DIRECTORY::BASE_RELOCATION_TABLE))}; // .l5 -> lief.relocation
+  Section new_relocation_section{".l" + std::to_string(static_cast<uint32_t>(DataDirectory::TYPES::BASE_RELOCATION_TABLE))}; // .l5 -> lief.relocation
   new_relocation_section.characteristics(0x42000040);
   const size_t size_aligned = align(content.size(), binary_->optional_header().file_alignment());
 
@@ -242,7 +242,7 @@ ok_error_t Builder::build_resources() {
   uint32_t offset_name   = headerSize;
   uint32_t offset_data   = headerSize + nameSize;
 
-  Section new_section_rsrc{".l" + std::to_string(static_cast<uint32_t>(DATA_DIRECTORY::RESOURCE_TABLE))};
+  Section new_section_rsrc{".l" + std::to_string(static_cast<uint32_t>(DataDirectory::TYPES::RESOURCE_TABLE))};
   new_section_rsrc.characteristics(0x40000040);
   new_section_rsrc.content(content);
 
@@ -383,7 +383,7 @@ ok_error_t Builder::construct_resources(ResourceNode& node, std::vector<uint8_t>
               content->data() + *offset_header);
 
     *offset_header += sizeof(details::pe_resource_directory_table);
-    const std::vector<uint8_t>& resource_content = rsrc_data.content();
+    span<const uint8_t> resource_content = rsrc_data.content();
 
     std::copy(std::begin(resource_content), std::end(resource_content),
               content->data() + *offset_data);
@@ -397,7 +397,7 @@ ok_error_t Builder::construct_resources(ResourceNode& node, std::vector<uint8_t>
 ok_error_t Builder::build_overlay() {
 
   const uint64_t last_section_offset = std::accumulate(
-      std::begin(binary_->sections_), std::end(binary_->sections_), 0,
+      std::begin(binary_->sections_), std::end(binary_->sections_), uint64_t{ 0u },
       [] (uint64_t offset, const std::unique_ptr<Section>& section) {
         return std::max<uint64_t>(section->offset() + section->size(), offset);
       });
@@ -417,7 +417,7 @@ ok_error_t Builder::build(const DosHeader& dos_header) {
   std::memset(&raw_dos_header, 0, sizeof(details::pe_dos_header));
 
   raw_dos_header.Magic                     = static_cast<uint16_t>(dos_header.magic());
-  raw_dos_header.UsedBytesInTheLastPage    = static_cast<uint16_t>(dos_header.used_bytes_in_the_last_page());
+  raw_dos_header.UsedBytesInTheLastPage    = static_cast<uint16_t>(dos_header.used_bytes_in_last_page());
   raw_dos_header.FileSizeInPages           = static_cast<uint16_t>(dos_header.file_size_in_pages());
   raw_dos_header.NumberOfRelocationItems   = static_cast<uint16_t>(dos_header.numberof_relocation());
   raw_dos_header.HeaderSizeInParagraphs    = static_cast<uint16_t>(dos_header.header_size_in_paragraphs());

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <numeric>
 #include <iomanip>
 
 #include "LIEF/MachO/hash.hpp"
@@ -24,60 +23,6 @@
 
 namespace LIEF {
 namespace MachO {
-
-BuildToolVersion::BuildToolVersion() = default;
-BuildToolVersion::BuildToolVersion(const details::build_tool_version& tool) :
-  tool_{static_cast<BuildToolVersion::TOOLS>(tool.tool)},
-  version_{{
-    static_cast<uint32_t>((tool.version >> 16) & 0xFFFF),
-    static_cast<uint32_t>((tool.version >>  8) & 0xFF),
-    static_cast<uint32_t>((tool.version >>  0) & 0xFF)
-  }}
-{}
-
-BuildToolVersion::TOOLS BuildToolVersion::tool() const {
-  return tool_;
-}
-
-BuildToolVersion::version_t BuildToolVersion::version() const {
-  return version_;
-}
-
-BuildToolVersion::~BuildToolVersion() = default;
-
-bool BuildToolVersion::operator==(const BuildToolVersion& rhs) const {
-  if (this == &rhs) {
-    return true;
-  }
-  size_t hash_lhs = Hash::hash(*this);
-  size_t hash_rhs = Hash::hash(rhs);
-  return hash_lhs == hash_rhs;
-}
-
-bool BuildToolVersion::operator!=(const BuildToolVersion& rhs) const {
-  return !(*this == rhs);
-}
-
-void BuildToolVersion::accept(Visitor& visitor) const {
-  visitor.visit(*this);
-}
-
-
-
-std::ostream& operator<<(std::ostream& os, const BuildToolVersion& tool) {
-  BuildToolVersion::version_t version = tool.version();
-
-  os << to_string(tool.tool()) << " - ";
-  os << std::dec
-     << version[0] << "."
-     << version[1] << "."
-     << version[2] << std::endl;
-  return os;
-}
-
-
-// Build Version
-// =============
 
 BuildVersion::BuildVersion() = default;
 BuildVersion& BuildVersion::operator=(const BuildVersion&) = default;
@@ -98,6 +43,18 @@ BuildVersion::BuildVersion(const details::build_version_command& ver) :
     static_cast<uint32_t>((ver.sdk >>  0) & 0xFF)
   }}
 {
+}
+
+BuildVersion::BuildVersion(const PLATFORMS platform,
+                           const version_t &minos,
+                           const version_t &sdk,
+                           const tools_list_t &tools) :
+  LoadCommand::LoadCommand{LOAD_COMMAND_TYPES::LC_BUILD_VERSION,
+                           static_cast<uint32_t>(sizeof(details::build_version_command) +
+                           sizeof(details::build_tool_version) * tools.size())},
+  platform_{platform}, minos_{minos}, sdk_{sdk}, tools_{tools}
+{
+  original_data_.resize(size());
 }
 
 BuildVersion* BuildVersion::clone() const {
@@ -139,18 +96,7 @@ void BuildVersion::accept(Visitor& visitor) const {
 }
 
 
-bool BuildVersion::operator==(const BuildVersion& rhs) const {
-  if (this == &rhs) {
-    return true;
-  }
-  size_t hash_lhs = Hash::hash(*this);
-  size_t hash_rhs = Hash::hash(rhs);
-  return hash_lhs == hash_rhs;
-}
 
-bool BuildVersion::operator!=(const BuildVersion& rhs) const {
-  return !(*this == rhs);
-}
 
 bool BuildVersion::classof(const LoadCommand* cmd) {
   // This must be sync with BinaryParser.tcc

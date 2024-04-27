@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef LIEF_MACHO_SEGMENT_COMMAND_H_
-#define LIEF_MACHO_SEGMENT_COMMAND_H_
+#ifndef LIEF_MACHO_SEGMENT_COMMAND_H
+#define LIEF_MACHO_SEGMENT_COMMAND_H
 
 #include <string>
 #include <vector>
-#include <iostream>
+#include <ostream>
 #include <memory>
 
 #include "LIEF/span.hpp"
@@ -88,7 +88,7 @@ class LIEF_API SegmentCommand : public LoadCommand {
 
   SegmentCommand* clone() const override;
 
-  virtual ~SegmentCommand();
+  ~SegmentCommand() override;
 
   //! Name of the segment (e.g. ``__TEXT``)
   const std::string& name() const;
@@ -134,12 +134,12 @@ class LIEF_API SegmentCommand : public LoadCommand {
   Section* get_section(const std::string& name);
 
   //! The raw content of this segment
-  inline span<const uint8_t> content() const {
+  span<const uint8_t> content() const {
     return data_;
   }
 
   //! The original index of this segment
-  inline int8_t index() const {
+  int8_t index() const {
     return this->index_;
   }
 
@@ -166,8 +166,6 @@ class LIEF_API SegmentCommand : public LoadCommand {
   //! Check if the current segment embeds the given section name
   bool has_section(const std::string& section_name) const;
 
-  bool operator==(const SegmentCommand& rhs) const;
-  bool operator!=(const SegmentCommand& rhs) const;
 
   std::ostream& print(std::ostream& os) const override;
 
@@ -176,14 +174,14 @@ class LIEF_API SegmentCommand : public LoadCommand {
   static bool classof(const LoadCommand* cmd);
 
   protected:
-  inline span<uint8_t> writable_content() {
+  span<uint8_t> writable_content() {
     return data_;
   }
 
   void content_resize(size_t size);
   void content_insert(size_t where, size_t size);
 
-  inline void content_extend(size_t width) {
+  void content_extend(size_t width) {
     content_resize(data_.size() + width);
   }
 

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 #include <iomanip>
 
 #include "LIEF/PE/hash.hpp"
-#include "LIEF/exception.hpp"
+
 
 #include "LIEF/PE/ImportEntry.hpp"
 #include "logging.hpp"
@@ -37,9 +37,19 @@ ImportEntry::ImportEntry(uint64_t data, const std::string& name) :
   name_ = name;
 }
 
+ImportEntry::ImportEntry(uint64_t data, PE_TYPE type, const std::string& name) :
+  data_{data},
+  type_{type}
+{
+  name_ = name;
+}
 
 ImportEntry::ImportEntry(const std::string& name) :
   ImportEntry{0, name}
+{}
+
+ImportEntry::ImportEntry(const std::string& name, PE_TYPE type) :
+  ImportEntry{0, type, name}
 {}
 
 bool ImportEntry::is_ordinal() const {
@@ -95,18 +105,7 @@ void ImportEntry::accept(LIEF::Visitor& visitor) const {
   visitor.visit(*this);
 }
 
-bool ImportEntry::operator==(const ImportEntry& rhs) const {
-  if (this == &rhs) {
-    return true;
-  }
-  size_t hash_lhs = Hash::hash(*this);
-  size_t hash_rhs = Hash::hash(rhs);
-  return hash_lhs == hash_rhs;
-}
 
-bool ImportEntry::operator!=(const ImportEntry& rhs) const {
-  return !(*this == rhs);
-}
 
 
 std::ostream& operator<<(std::ostream& os, const ImportEntry& entry) {

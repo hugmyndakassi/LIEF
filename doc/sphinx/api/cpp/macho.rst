@@ -1,8 +1,8 @@
 MachO
 -----
 
-Parsers
-*******
+Parser
+******
 
 .. doxygenclass:: LIEF::MachO::Parser
    :project: lief
@@ -199,15 +199,6 @@ Relocation Dyld
    :project: lief
 
 ----------
-
-Relocation Dyld
-***************
-
-.. doxygenclass:: LIEF::MachO::RelocationDyld
-   :project: lief
-
-----------
-
 
 Relocation Fixup
 ****************

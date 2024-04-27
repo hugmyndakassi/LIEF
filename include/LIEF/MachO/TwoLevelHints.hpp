@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 #ifndef LIEF_MACHO_TWO_LEVEL_HINTS_H
 #define LIEF_MACHO_TWO_LEVEL_HINTS_H
 #include <vector>
-#include <iostream>
+#include <ostream>
 
 #include "LIEF/visibility.h"
 #include "LIEF/types.hpp"
@@ -56,8 +56,8 @@ class LIEF_API TwoLevelHints : public LoadCommand {
   TwoLevelHints* clone() const override;
 
   //! Original payload of the command
-  inline span<const uint8_t> content() const { return content_; }
-  inline span<uint8_t> content() { return content_; }
+  span<const uint8_t> content() const { return content_; }
+  span<uint8_t> content() { return content_; }
 
   //! Iterator over the hints (`uint32_t` integers)
   it_hints_t hints() { return hints_; }
@@ -65,17 +65,15 @@ class LIEF_API TwoLevelHints : public LoadCommand {
 
   //! Original offset of the command. It should point in the
   //! `__LINKEDIT` segment
-  inline uint32_t offset() const { return offset_; }
-  inline void offset(uint32_t offset)  { offset_ = offset; }
+  uint32_t offset() const { return offset_; }
+  void offset(uint32_t offset)  { offset_ = offset; }
 
-  inline uint32_t original_nb_hints() const {
+  uint32_t original_nb_hints() const {
     return original_nb_hints_;
   }
 
   ~TwoLevelHints() override;
 
-  bool operator==(const TwoLevelHints& rhs) const;
-  bool operator!=(const TwoLevelHints& rhs) const;
 
   void accept(Visitor& visitor) const override;
 

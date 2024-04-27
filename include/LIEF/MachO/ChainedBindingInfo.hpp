@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 #ifndef LIEF_MACHO_CHAINED_BINDING_INFO_H
 #define LIEF_MACHO_CHAINED_BINDING_INFO_H
-#include <iostream>
+#include <ostream>
 
 #include "LIEF/visibility.h"
 #include "LIEF/types.hpp"
@@ -57,26 +57,25 @@ class LIEF_API ChainedBindingInfo : public BindingInfo {
   ChainedBindingInfo& operator=(ChainedBindingInfo other);
   ChainedBindingInfo(const ChainedBindingInfo& other);
   ChainedBindingInfo(ChainedBindingInfo&&);
-  ChainedBindingInfo& operator=(ChainedBindingInfo&&);
 
   void swap(ChainedBindingInfo& other);
 
   //! Format of the imports
-  inline DYLD_CHAINED_FORMAT format() const {
+  DYLD_CHAINED_FORMAT format() const {
     return format_;
   }
 
   //! Format of the pointer
-  inline DYLD_CHAINED_PTR_FORMAT ptr_format() const {
+  DYLD_CHAINED_PTR_FORMAT ptr_format() const {
     return ptr_format_;
   }
 
   //! Original offset in the chain of this binding
-  inline uint32_t offset() const {
+  uint32_t offset() const {
     return offset_;
   }
 
-  inline void offset(uint32_t offset) {
+  void offset(uint32_t offset) {
     offset_ = offset;
   }
 
@@ -85,20 +84,20 @@ class LIEF_API ChainedBindingInfo : public BindingInfo {
 
   uint64_t sign_extended_addend() const;
 
-  inline BindingInfo::TYPES type() const override {
+  BindingInfo::TYPES type() const override {
     return BindingInfo::TYPES::CHAINED;
+  }
+
+  static bool classof(const BindingInfo* info) {
+    return info->type() == BindingInfo::TYPES::CHAINED;
   }
 
   ~ChainedBindingInfo() override;
 
-  bool operator==(const ChainedBindingInfo& rhs) const;
-  bool operator!=(const ChainedBindingInfo& rhs) const;
 
   void accept(Visitor& visitor) const override;
 
   LIEF_API friend std::ostream& operator<<(std::ostream& os, const ChainedBindingInfo& info);
-
-  static bool classof(const BindingInfo& info);
 
   private:
   void clear();

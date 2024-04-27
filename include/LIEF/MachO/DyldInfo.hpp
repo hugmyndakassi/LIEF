@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,11 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef LIEF_MACHO_DYLD_INFO_COMMAND_H_
-#define LIEF_MACHO_DYLD_INFO_COMMAND_H_
+#ifndef LIEF_MACHO_DYLD_INFO_COMMAND_H
+#define LIEF_MACHO_DYLD_INFO_COMMAND_H
 #include <string>
+#include <set>
 #include <vector>
-#include <iostream>
+#include <ostream>
 #include <memory>
 
 #include "LIEF/visibility.h"
@@ -33,11 +34,13 @@ class vector_iostream;
 class BinaryStream;
 namespace MachO {
 
-class Builder;
+class Binary;
 class BinaryParser;
-class LinkEdit;
+class Builder;
 class DyldBindingInfo;
 class ExportInfo;
+class LinkEdit;
+class RelocationDyld;
 
 namespace details {
 struct dyld_info_command;
@@ -90,7 +93,7 @@ class LIEF_API DyldInfo : public LoadCommand {
 
   DyldInfo* clone() const override;
 
-  virtual ~DyldInfo();
+  ~DyldInfo() override;
 
   //! *Rebase* information
   //!
@@ -268,8 +271,6 @@ class LIEF_API DyldInfo : public LoadCommand {
 
   void add(std::unique_ptr<ExportInfo> info);
 
-  bool operator==(const DyldInfo& rhs) const;
-  bool operator!=(const DyldInfo& rhs) const;
 
   void accept(Visitor& visitor) const override;
 

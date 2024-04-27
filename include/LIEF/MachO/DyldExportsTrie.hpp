@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -71,7 +71,7 @@ class LIEF_API DyldExportsTrie : public LoadCommand {
   void data_offset(uint32_t offset);
   void data_size(uint32_t size);
 
-  inline span<const uint8_t> content() const {
+  span<const uint8_t> content() const {
     return content_;
   }
 
@@ -86,8 +86,6 @@ class LIEF_API DyldExportsTrie : public LoadCommand {
   //! See also: LIEF::MachO::Binary::add_exported_function
   void add(std::unique_ptr<ExportInfo> info);
 
-  bool operator==(const DyldExportsTrie& rhs) const;
-  bool operator!=(const DyldExportsTrie& rhs) const;
 
   void accept(Visitor& visitor) const override;
 

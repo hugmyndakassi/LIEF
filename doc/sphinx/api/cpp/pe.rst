@@ -1,6 +1,18 @@
 PE
 --
 
+Parser
+******
+
+.. doxygenclass:: LIEF::PE::Parser
+   :project: lief
+
+.. doxygenstruct:: LIEF::PE::ParserConfig
+   :project: lief
+
+----------
+
+
 Binary
 ******
 
@@ -265,6 +277,24 @@ Signature SpcSpOpusInfo
 
 ----------
 
+Signature SpcIndirectData
+*************************
+
+.. doxygenclass:: LIEF::PE::SpcIndirectData
+  :project: lief
+
+
+----------
+
+Signature GenericContent
+************************
+
+.. doxygenclass:: LIEF::PE::GenericContent
+  :project: lief
+
+
+----------
+
 
 RsaInfo
 *******
@@ -469,6 +499,7 @@ Pogo
 
 ----------
 
+
 Pogo Entry
 **************
 
@@ -476,6 +507,15 @@ Pogo Entry
   :project: lief
 
 ----------
+
+Repro
+*****
+
+.. doxygenclass:: LIEF::PE::Repro
+  :project: lief
+
+----------
+
 
 Load Configuration
 ******************
@@ -532,6 +572,30 @@ Load Configuration V7
 .. doxygenclass:: LIEF::PE::LoadConfigurationV7
   :project: lief
 
+Load Configuration V8
+~~~~~~~~~~~~~~~~~~~~~
+
+.. doxygenclass:: LIEF::PE::LoadConfigurationV8
+  :project: lief
+
+Load Configuration V9
+~~~~~~~~~~~~~~~~~~~~~
+
+.. doxygenclass:: LIEF::PE::LoadConfigurationV9
+  :project: lief
+
+Load Configuration V10
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. doxygenclass:: LIEF::PE::LoadConfigurationV10
+  :project: lief
+
+Load Configuration V11
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. doxygenclass:: LIEF::PE::LoadConfigurationV11
+  :project: lief
+
 -------------------
 
 Utilities
@@ -566,12 +630,6 @@ Utilities
 Enums
 *****
 
-.. doxygenenum:: LIEF::PE::MACHINE_TYPES
-   :project: lief
-
-.. doxygenenum:: LIEF::PE::HEADER_CHARACTERISTICS
-   :project: lief
-
 .. doxygenenum:: LIEF::PE::SYMBOL_STORAGE_CLASS
    :project: lief
 
@@ -581,9 +639,6 @@ Enums
 .. doxygenenum:: LIEF::PE::SYMBOL_COMPLEX_TYPES
    :project: lief
 
-.. doxygenenum:: LIEF::PE::RELOCATIONS_BASE_TYPES
-   :project: lief
-
 .. doxygenenum:: LIEF::PE::RELOCATIONS_I386
    :project: lief
 
@@ -591,27 +646,6 @@ Enums
    :project: lief
 
 .. doxygenenum:: LIEF::PE::RELOCATIONS_ARM
-   :project: lief
-
-.. doxygenenum:: LIEF::PE::DATA_DIRECTORY
-   :project: lief
-
-.. doxygenenum:: LIEF::PE::SUBSYSTEM
-   :project: lief
-
-.. doxygenenum:: LIEF::PE::DLL_CHARACTERISTICS
-   :project: lief
-
-.. doxygenenum:: LIEF::PE::DEBUG_TYPES
-   :project: lief
-
-.. doxygenenum:: LIEF::PE::RESOURCE_TYPES
-   :project: lief
-
-.. doxygenenum:: LIEF::PE::RESOURCE_LANGS
-   :project: lief
-
-.. doxygenenum:: LIEF::PE::RESOURCE_SUBLANGS
    :project: lief
 
 .. doxygenenum:: LIEF::PE::CODE_PAGES
@@ -638,14 +672,5 @@ Enums
 .. doxygenenum:: LIEF::PE::FIXED_VERSION_FILE_SUB_TYPES
    :project: lief
 
-.. doxygenenum:: LIEF::PE::WIN_VERSION
-   :project: lief
-
-.. doxygenenum:: LIEF::PE::GUARD_CF_FLAGS
-   :project: lief
-
 .. doxygenenum:: LIEF::PE::ALGORITHMS
-   :project: lief
-
-.. doxygenenum:: LIEF::PE::SIG_ATTRIBUTE_TYPES
    :project: lief

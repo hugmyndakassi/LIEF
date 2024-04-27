@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 #ifndef LIEF_MACHO_DYLD_INFO_BINDING_INFO_H
 #define LIEF_MACHO_DYLD_INFO_BINDING_INFO_H
-#include <iostream>
+#include <ostream>
 
 #include "LIEF/visibility.h"
 #include "LIEF/types.hpp"
@@ -46,7 +46,6 @@ class LIEF_API DyldBindingInfo : public BindingInfo {
   DyldBindingInfo& operator=(DyldBindingInfo other);
   DyldBindingInfo(const DyldBindingInfo& other);
 
-  DyldBindingInfo& operator=(DyldBindingInfo&&);
   DyldBindingInfo(DyldBindingInfo&&);
 
   void swap(DyldBindingInfo& other);
@@ -59,32 +58,30 @@ class LIEF_API DyldBindingInfo : public BindingInfo {
   BIND_TYPES binding_type() const;
   void binding_type(BIND_TYPES type);
 
-  inline bool is_non_weak_definition() const {
+  bool is_non_weak_definition() const {
     return this->is_non_weak_definition_;
   }
 
-  inline void set_non_weak_definition(bool val) {
+  void set_non_weak_definition(bool val) {
     this->is_non_weak_definition_ = val;
   }
 
   //! Original relative offset of the binding opcodes
   uint64_t original_offset() const;
 
-  inline BindingInfo::TYPES type() const override {
+  BindingInfo::TYPES type() const override {
     return BindingInfo::TYPES::DYLD_INFO;
+  }
+
+  static bool classof(const BindingInfo* info) {
+    return info->type() == BindingInfo::TYPES::DYLD_INFO;
   }
 
   ~DyldBindingInfo() override;
 
-  bool operator==(const DyldBindingInfo& rhs) const;
-  bool operator!=(const DyldBindingInfo& rhs) const;
-
   void accept(Visitor& visitor) const override;
 
   LIEF_API friend std::ostream& operator<<(std::ostream& os, const DyldBindingInfo& binding_info);
-
-  static bool classof(const BindingInfo& info);
-
   private:
   BINDING_CLASS   class_ = BINDING_CLASS::BIND_CLASS_STANDARD;
   BIND_TYPES      binding_type_ = BIND_TYPES::BIND_TYPE_POINTER;

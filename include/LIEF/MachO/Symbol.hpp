@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef LIEF_MACHO_SYMBOL_H_
-#define LIEF_MACHO_SYMBOL_H_
+#ifndef LIEF_MACHO_SYMBOL_H
+#define LIEF_MACHO_SYMBOL_H
 
-#include <iostream>
+#include <ostream>
 
 #include "LIEF/types.hpp"
 #include "LIEF/visibility.h"
@@ -112,11 +112,11 @@ class LIEF_API Symbol : public LIEF::Symbol {
 
   //! Return the library in which the symbol is defined.
   //! It returns a null pointer if the library can't be resolved
-  inline const DylibCommand* library() const {
+  const DylibCommand* library() const {
     return library_;
   }
 
-  inline DylibCommand* library() {
+  DylibCommand* library() {
     return library_;
   }
 
@@ -124,7 +124,7 @@ class LIEF_API Symbol : public LIEF::Symbol {
   SYMBOL_ORIGINS origin() const;
 
   //! Category of the symbol according to the `LC_DYSYMTAB` command
-  inline CATEGORY category() const {
+  CATEGORY category() const {
     return category_;
   }
 
@@ -134,8 +134,6 @@ class LIEF_API Symbol : public LIEF::Symbol {
 
   void accept(Visitor& visitor) const override;
 
-  bool operator==(const Symbol& rhs) const;
-  bool operator!=(const Symbol& rhs) const;
 
   LIEF_API friend std::ostream& operator<<(std::ostream& os, const Symbol& symbol);
 
@@ -144,7 +142,7 @@ class LIEF_API Symbol : public LIEF::Symbol {
 
   private:
   Symbol(CATEGORY cat);
-  inline void library(DylibCommand& library) {
+  void library(DylibCommand& library) {
     this->library_ = &library;
   }
 

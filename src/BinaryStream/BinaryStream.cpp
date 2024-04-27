@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,20 +15,14 @@
  */
 #include "LIEF/BinaryStream/BinaryStream.hpp"
 #include "LIEF/DWARF/enums.hpp"
-#include "LIEF/utils.hpp"
 #include "third-party/utfcpp.hpp"
-#include <mbedtls/platform.h>
-#include <mbedtls/asn1.h>
-#include <mbedtls/error.h>
-#include <mbedtls/oid.h>
+
+#include <mbedtls/x509.h>
 #include <mbedtls/x509_crt.h>
 
 #include "intmem.h"
 
-#include <iomanip>
-#include <sstream>
 #include <algorithm>
-#include <iostream>
 
 #define TMPL_DECL(T) template T BinaryStream::swap_endian<T>(T u)
 
@@ -132,7 +126,7 @@ result<int64_t> BinaryStream::read_dwarf_encoded(uint8_t encoding) const {
 result<uint64_t> BinaryStream::read_uleb128() const {
   uint64_t value = 0;
   unsigned shift = 0;
-  result<uint8_t> byte_read;
+  result<uint8_t> byte_read = 0;
   do {
     byte_read = read<uint8_t>();
     if (!byte_read) {
@@ -148,7 +142,7 @@ result<uint64_t> BinaryStream::read_uleb128() const {
 result<uint64_t> BinaryStream::read_sleb128() const {
   int64_t  value = 0;
   unsigned shift = 0;
-  result<uint8_t> byte_read;
+  result<uint8_t> byte_read = 0;
   do {
     byte_read = read<uint8_t>();
     if (!byte_read) {
@@ -170,7 +164,7 @@ result<uint64_t> BinaryStream::read_sleb128() const {
 result<std::string> BinaryStream::read_string(size_t maxsize) const {
   result<std::string> str = peek_string(maxsize);
   if (!str) {
-    return str.error();
+    return str;
   }
   increment_pos(str->size() + 1); // +1 for'\0'
   return str;
@@ -190,7 +184,7 @@ result<std::string> BinaryStream::peek_string(size_t maxsize) const {
   do {
     c = peek<char>(off);
     if (!c) {
-      return c.error();
+      return make_error_code(c.error());
     }
     off += sizeof(char);
     str_result.push_back(*c);
@@ -212,7 +206,7 @@ result<std::string> BinaryStream::peek_string_at(size_t offset, size_t maxsize) 
 result<std::u16string> BinaryStream::read_u16string() const {
   result<std::u16string> str = peek_u16string();
   if (!str) {
-    return str.error();
+    return str;
   }
   increment_pos((str->size() + 1) * sizeof(uint16_t)); // +1 for'\0'
   return str.value();
@@ -221,22 +215,20 @@ result<std::u16string> BinaryStream::read_u16string() const {
 result<std::u16string> BinaryStream::peek_u16string() const {
   std::u16string u16_str;
   u16_str.reserve(10);
-  result<char16_t> c = '\0';
+  result<char16_t> c = char16_t{0};
   size_t off = pos();
 
   if (!can_read<char16_t>()) {
     return u16_str;
   }
 
-  size_t count = 0;
   do {
     c = peek<char16_t>(off);
     if (!c) {
-      return c.error();
+      return make_error_code(c.error());
     }
     off += sizeof(char16_t);
     u16_str.push_back(*c);
-    ++count;
   } while (c && *c != 0 && off < size());
   u16_str.back() = '\0';
   return u16_str.c_str();
@@ -250,7 +242,7 @@ result<std::u16string> BinaryStream::read_u16string(size_t length) const {
 }
 
 result<std::u16string> BinaryStream::peek_u16string(size_t length) const {
-  if (length == static_cast<size_t>(-1u)) {
+  if (length == static_cast<size_t>(SIZE_MAX)) {
     return peek_u16string();
   }
 
@@ -296,7 +288,7 @@ result<std::string> BinaryStream::read_mutf8(size_t maxsize) const {
   for (size_t i = 0; i < maxsize; ++i) {
     result<uint8_t> res_a = read<char>();
     if (!res_a) {
-      return res_a.error();
+      return make_error_code(res_a.error());
     }
     uint8_t a = *res_a;
 
@@ -309,7 +301,7 @@ result<std::string> BinaryStream::read_mutf8(size_t maxsize) const {
 
       result<uint8_t> res_b = read<int8_t>();
       if (!res_b) {
-        return res_b.error();
+        return make_error_code(res_b.error());
       }
       uint8_t b = *res_b & 0xFF;
 
@@ -321,10 +313,10 @@ result<std::string> BinaryStream::read_mutf8(size_t maxsize) const {
         result<uint8_t> res_b = read<uint8_t>();
         result<uint8_t> res_c = read<uint8_t>();
         if (!res_b) {
-          return res_b.error();
+          return make_error_code(res_b.error());
         }
         if (!res_c) {
-          return res_c.error();
+          return make_error_code(res_c.error());
         }
         uint8_t b = *res_b;
         uint8_t c = *res_c;
@@ -345,7 +337,8 @@ result<std::string> BinaryStream::read_mutf8(size_t maxsize) const {
         return !utf8::internal::is_code_point_valid(c);
       }, '.');
 
-  utf8::utf32to8(std::begin(u32str), std::end(u32str), std::back_inserter(u8str));
+  utf8::unchecked::utf32to8(std::begin(u32str), std::end(u32str),
+                            std::back_inserter(u8str));
   return u8str;
 }
 
@@ -353,51 +346,4 @@ void BinaryStream::set_endian_swap(bool swap) {
   endian_swap_ = swap;
 }
 
-result<size_t> BinaryStream::asn1_read_tag(int) {
-  return make_error_code(lief_errors::not_implemented);
 }
-
-result<size_t> BinaryStream::asn1_read_len() {
-  return make_error_code(lief_errors::not_implemented);
-}
-
-result<std::string> BinaryStream::asn1_read_alg() {
-  return make_error_code(lief_errors::not_implemented);
-}
-
-result<std::string> BinaryStream::asn1_read_oid() {
-  return make_error_code(lief_errors::not_implemented);
-}
-
-result<int32_t> BinaryStream::asn1_read_int() {
-  return make_error_code(lief_errors::not_implemented);
-}
-
-result<std::vector<uint8_t>> BinaryStream::asn1_read_bitstring() {
-  return make_error_code(lief_errors::not_implemented);
-}
-
-result<std::vector<uint8_t>> BinaryStream::asn1_read_octet_string() {
-  return make_error_code(lief_errors::not_implemented);
-}
-
-result<std::unique_ptr<mbedtls_x509_crt>> BinaryStream::asn1_read_cert() {
-  return make_error_code(lief_errors::not_implemented);
-}
-
-result<std::string> BinaryStream::x509_read_names() {
-  return make_error_code(lief_errors::not_implemented);
-}
-
-result<std::vector<uint8_t>> BinaryStream::x509_read_serial() {
-  return make_error_code(lief_errors::not_implemented);
-}
-
-result<std::unique_ptr<mbedtls_x509_time>> BinaryStream::x509_read_time() {
-  return make_error_code(lief_errors::not_implemented);
-}
-
-
-
-}
-

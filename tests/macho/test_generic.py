@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import lief
 from utils import get_sample
+import hashlib
 
 def test_function_starts():
     dd = lief.parse(get_sample('MachO/MachO64_x86-64_binary_dd.bin'))
@@ -19,8 +20,8 @@ def test_function_starts():
     ]
 
     assert dd.function_starts.data_offset == 21168
-    assert dd.function_starts.data_size ==   48
-    text_segment = list(filter(lambda e : e.name == "__TEXT", dd.segments))[0]
+    assert dd.function_starts.data_size == 48
+    text_segment = list(filter(lambda e: e.name == "__TEXT", dd.segments))[0]
     functions_dd = map(text_segment.virtual_address .__add__, dd.function_starts.functions)
 
     assert functions == list(functions_dd)
@@ -47,6 +48,13 @@ def test_thread_cmd():
 def test_rpath_cmd():
     rpathmacho = lief.parse(get_sample('MachO/MachO64_x86-64_binary_rpathtest.bin'))
     assert rpathmacho.rpath.path == "@executable_path/../lib"
+
+def test_rpaths():
+    macho = lief.parse(get_sample('MachO/rpath_291.bin'))
+    assert len(macho.rpaths) == 2
+
+    assert macho.rpaths[0].path == "/tmp"
+    assert macho.rpaths[1].path == "/var"
 
 def test_relocations():
     helloworld = lief.parse(get_sample('MachO/MachO64_x86-64_object_HelloWorld64.o'))
@@ -220,3 +228,51 @@ def test_get_section():
     sample = get_sample("MachO/MachO64_x86-64_binary_large-bss.bin")
     macho = lief.parse(sample)
     assert macho.get_section("__DATA_CONST", "__got") is not None
+
+
+
+def test_segment_add_section():
+    binary = lief.parse(get_sample('MachO/MachO64_x86-64_binary_safaridriver.bin'))
+
+    section = lief.MachO.Section("__bar", [1, 2, 3])
+
+    existing_segment = binary.get_segment("__TEXT")
+    new_segment = lief.MachO.SegmentCommand("__FOO")
+
+    for segment in (existing_segment, new_segment):
+        assert not segment.has_section(section.name)
+        assert not segment.has(section)
+        assert segment.numberof_sections == len(segment.sections)
+
+        numberof_sections = segment.numberof_sections
+
+        section = segment.add_section(section)
+        assert segment.numberof_sections == numberof_sections + 1
+        assert segment.has_section(section.name)
+        assert segment.has(section)
+        assert section in segment.sections
+
+def test_issue_728():
+    x86_64_binary = lief.parse(get_sample('MachO/MachO64_x86-64_binary_safaridriver.bin'))
+    arm64_binary = lief.MachO.parse(get_sample('MachO/FAT_MachO_arm-arm64-binary-helloworld.bin')).take(lief.MachO.CPU_TYPES.ARM64)
+
+    segment = lief.MachO.SegmentCommand("__FOO")
+    segment.add_section(lief.MachO.Section("__bar", [1, 2, 3]))
+
+    for parsed in (x86_64_binary, arm64_binary):
+        new_segment = parsed.add(segment)
+        assert new_segment.virtual_size == parsed.page_size
+
+def test_twolevel_hints():
+    sample = lief.MachO.parse(get_sample("MachO/ios1-expr.bin"))[0]
+    tw_hints: lief.MachO.TwoLevelHints = sample[lief.MachO.LOAD_COMMAND_TYPES.TWOLEVEL_HINTS]
+    assert tw_hints is not None
+    print(tw_hints)
+    hints = tw_hints.hints
+    assert len(hints) == 26
+    print(hints[0])
+    assert sum(hints) == 10854400
+    assert hints[0] == 54528
+    assert hashlib.sha256(tw_hints.data).hexdigest() == "e44cef3a83eb89954557a9ad2a36ebf4794ce0385da5a39381fdadc3e6037beb"
+    assert tw_hints.command_offset == 1552
+    print(lief.to_json(tw_hints))

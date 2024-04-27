@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,8 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <numeric>
-#include <iomanip>
 #include <utility>
 
 #include "LIEF/MachO/FatBinary.hpp"
@@ -145,6 +143,12 @@ std::vector<uint8_t> FatBinary::raw() {
   std::vector<uint8_t> buffer;
   Builder::write(*this, buffer);
   return buffer;
+}
+
+void FatBinary::release_all_binaries() {
+  for (auto& bin : binaries_) {
+    bin.release();
+  }
 }
 
 std::ostream& operator<<(std::ostream& os, const FatBinary& fatbinary) {

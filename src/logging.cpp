@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,15 +28,13 @@
 namespace LIEF {
 namespace logging {
 
-Logger* Logger::instance_ = nullptr;
-
 Logger::Logger(Logger&&) = default;
 Logger& Logger::operator=(Logger&&) = default;
 Logger::~Logger() = default;
 
 Logger::Logger() {
-  if /* constexpr */ (lief_logging_support) {
-    if /* constexpr */ (current_platform() == PLATFORMS::ANDROID_PLAT) {
+  if constexpr (lief_logging_support) {
+    if constexpr (current_platform() == PLATFORMS::ANDROID_PLAT) {
       #if defined(__ANDROID__)
       sink_ = spdlog::android_logger_mt("LIEF", "lief");
       #else
@@ -57,6 +55,15 @@ Logger::Logger() {
   }
 }
 
+
+Logger::Logger(const std::string& filepath) {
+  sink_ = spdlog::basic_logger_mt("LIEF", filepath, /* truncate */ true);
+  sink_->set_level(spdlog::level::warn);
+  sink_->set_pattern("%v");
+  sink_->flush_on(spdlog::level::warn);
+
+}
+
 Logger& Logger::instance() {
   if (instance_ == nullptr) {
     instance_ = new Logger{};
@@ -65,9 +72,45 @@ Logger& Logger::instance() {
   return *instance_;
 }
 
+void Logger::reset() {
+  Logger::destroy();
+  Logger::instance();
+}
 
 void Logger::destroy() {
+  spdlog::details::registry::instance().drop("LIEF");
   delete instance_;
+  instance_ = nullptr;
+}
+
+Logger& Logger::set_log_path(const std::string& path) {
+  if (instance_ == nullptr) {
+    instance_ = new Logger{path};
+    std::atexit(destroy);
+    return *instance_;
+  }
+  auto& logger = Logger::instance();
+  spdlog::details::registry::instance().drop("LIEF");
+  logger.sink_ = spdlog::basic_logger_mt("LIEF", path,
+                                         /*truncate=*/true);
+  logger.sink_->set_pattern("%v");
+  logger.sink_->set_level(spdlog::level::warn);
+  logger.sink_->flush_on(spdlog::level::warn);
+  return logger;
+}
+
+void Logger::set_logger(const spdlog::logger& logger) {
+  if (logger.name() != "LIEF") {
+    return;
+  }
+
+  auto& instance = Logger::instance();
+  spdlog::details::registry::instance().drop("LIEF");
+
+  instance.sink_ = std::make_shared<spdlog::logger>(logger);
+  instance.sink_->set_pattern("%v");
+  instance.sink_->set_level(spdlog::level::warn);
+  instance.sink_->flush_on(spdlog::level::warn);
 }
 
 const char* to_string(LOGGING_LEVEL e) {
@@ -85,19 +128,19 @@ const char* to_string(LOGGING_LEVEL e) {
 
 
 void Logger::disable() {
-  if /* constexpr */ (lief_logging_support) {
+  if constexpr (lief_logging_support) {
     Logger::instance().sink_->set_level(spdlog::level::off);
   }
 }
 
 void Logger::enable() {
-  if /* constexpr */ (lief_logging_support) {
+  if constexpr (lief_logging_support) {
     Logger::instance().sink_->set_level(spdlog::level::warn);
   }
 }
 
 void Logger::set_level(LOGGING_LEVEL level) {
-  if /* constexpr */ (!lief_logging_support) {
+  if constexpr (!lief_logging_support) {
     return;
   }
   switch (level) {
@@ -158,6 +201,45 @@ void enable() {
 
 void set_level(LOGGING_LEVEL level) {
   Logger::set_level(level);
+}
+
+void set_path(const std::string& path) {
+  Logger::set_log_path(path);
+}
+
+void set_logger(const spdlog::logger& logger) {
+  Logger::set_logger(logger);
+}
+
+void reset() {
+  Logger::reset();
+}
+
+void log(LOGGING_LEVEL level, const std::string& msg) {
+  switch (level) {
+    case LOGGING_LEVEL::LOG_TRACE:
+    case LOGGING_LEVEL::LOG_DEBUG:
+      {
+        LIEF_DEBUG("{}", msg);
+        break;
+      }
+    case LOGGING_LEVEL::LOG_INFO:
+      {
+        LIEF_INFO("{}", msg);
+        break;
+      }
+    case LOGGING_LEVEL::LOG_WARN:
+      {
+        LIEF_WARN("{}", msg);
+        break;
+      }
+    case LOGGING_LEVEL::LOG_CRITICAL:
+    case LOGGING_LEVEL::LOG_ERR:
+      {
+        LIEF_ERR("{}", msg);
+        break;
+      }
+  }
 }
 
 }

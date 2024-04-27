@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ELF_DATA_HANDLER_HANDLER_H_
-#define ELF_DATA_HANDLER_HANDLER_H_
+#ifndef LIEF_ELF_DATA_HANDLER
+#define LIEF_ELF_DATA_HANDLER
 #include <vector>
+#include <functional>
+#include <memory>
 
 #include "LIEF/visibility.h"
 #include "LIEF/utils.hpp"
@@ -30,6 +32,9 @@ namespace DataHandler {
 
 class LIEF_API Handler {
   public:
+  template<class T>
+  using ref_t = std::reference_wrapper<T>;
+
   static constexpr size_t MAX_SIZE = 4_GB;
   Handler(std::vector<uint8_t> content);
   Handler(std::vector<uint8_t>&& content);
@@ -50,7 +55,7 @@ class LIEF_API Handler {
 
   bool has(uint64_t offset, uint64_t size, Node::Type type);
 
-  result<Node&> get(uint64_t offset, uint64_t size, Node::Type type);
+  result<ref_t<Node>> get(uint64_t offset, uint64_t size, Node::Type type);
 
   Node& create(uint64_t offset, uint64_t size, Node::Type type);
 

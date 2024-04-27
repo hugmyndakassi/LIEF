@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,33 +24,8 @@ namespace LIEF {
 namespace MachO {
 
 DynamicSymbolCommand::DynamicSymbolCommand() :
-  LoadCommand::LoadCommand{LOAD_COMMAND_TYPES::LC_DYSYMTAB, 0},
-  idx_local_symbol_{0},
-  nb_local_symbols_{0},
-
-  idx_external_define_symbol_{0},
-  nb_external_define_symbols_{0},
-
-  idx_undefined_symbol_{0},
-  nb_undefined_symbols_{0},
-
-  toc_offset_{0},
-  nb_toc_{0},
-
-  module_table_offset_{0},
-  nb_module_table_{0},
-
-  external_reference_symbol_offset_{0},
-  nb_external_reference_symbols_{0},
-
-  indirect_sym_offset_{0},
-  nb_indirect_symbols_{0},
-
-  external_relocation_offset_{0},
-  nb_external_relocations_{0},
-
-  local_relocation_offset_{0},
-  nb_local_relocations_{0}
+  LoadCommand::LoadCommand{LOAD_COMMAND_TYPES::LC_DYSYMTAB,
+                           sizeof(details::dysymtab_command)}
 {}
 
 DynamicSymbolCommand::DynamicSymbolCommand(const details::dysymtab_command& cmd) :
@@ -254,18 +229,7 @@ void DynamicSymbolCommand::accept(Visitor& visitor) const {
 }
 
 
-bool DynamicSymbolCommand::operator==(const DynamicSymbolCommand& rhs) const {
-  if (this == &rhs) {
-    return true;
-  }
-  size_t hash_lhs = Hash::hash(*this);
-  size_t hash_rhs = Hash::hash(rhs);
-  return hash_lhs == hash_rhs;
-}
 
-bool DynamicSymbolCommand::operator!=(const DynamicSymbolCommand& rhs) const {
-  return !(*this == rhs);
-}
 
 bool DynamicSymbolCommand::classof(const LoadCommand* cmd) {
   // This must be sync with BinaryParser.tcc
@@ -320,4 +284,3 @@ std::ostream& DynamicSymbolCommand::print(std::ostream& os) const {
 
 }
 }
-

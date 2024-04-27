@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,10 +36,6 @@ SpanStream::SpanStream(const std::vector<uint8_t>& data) :
   data_{data}
 {
   stype_ = STREAM_TYPE::SPAN;
-}
-
-result<SpanStream> SpanStream::from_vector(const std::vector<uint8_t>& data) {
-  return SpanStream{data};
 }
 
 result<const void*> SpanStream::read_at(uint64_t offset, uint64_t size) const {

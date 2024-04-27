@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 #include <iterator>
-#include <iostream>
+#include <ostream>
 #include "LIEF/iostream.hpp"
 
 namespace LIEF {
@@ -84,10 +84,6 @@ vector_iostream& vector_iostream::write(std::vector<uint8_t> s) {
 
   current_pos_ += s.size();
   return *this;
-}
-
-vector_iostream& vector_iostream::write(span<const uint8_t> s) {
-  return write(s.data(), s.size());
 }
 
 vector_iostream& vector_iostream::write_sized_int(uint64_t value, size_t size) {

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <numeric>
 #include <iomanip>
+#include <sstream>
 
 #include "LIEF/BinaryStream/SpanStream.hpp"
 
@@ -30,6 +30,7 @@ namespace MachO {
 DyldExportsTrie::DyldExportsTrie() = default;
 DyldExportsTrie::~DyldExportsTrie() = default;
 DyldExportsTrie::DyldExportsTrie(const DyldExportsTrie& other) :
+  LoadCommand::LoadCommand(other),
   data_offset_{other.data_offset_},
   data_size_{other.data_size_}
 {
@@ -105,18 +106,7 @@ std::string DyldExportsTrie::show_export_trie() const {
 }
 
 
-bool DyldExportsTrie::operator==(const DyldExportsTrie& rhs) const {
-  if (this == &rhs) {
-    return true;
-  }
-  size_t hash_lhs = Hash::hash(*this);
-  size_t hash_rhs = Hash::hash(rhs);
-  return hash_lhs == hash_rhs;
-}
 
-bool DyldExportsTrie::operator!=(const DyldExportsTrie& rhs) const {
-  return !(*this == rhs);
-}
 
 bool DyldExportsTrie::classof(const LoadCommand* cmd) {
   // This must be sync with BinaryParser.tcc

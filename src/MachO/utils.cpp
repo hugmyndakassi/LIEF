@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#include <fstream>
-#include <iterator>
 #include <string>
 #include <vector>
 
@@ -43,7 +41,7 @@
 
 #include "MachO/Structures.hpp"
 
-#include "LIEF/exception.hpp"
+
 #include "LIEF/BinaryStream/FileStream.hpp"
 #include "LIEF/BinaryStream/SpanStream.hpp"
 #include "logging.hpp"
@@ -199,9 +197,7 @@ bool check_valid_paths(const Binary& binary, std::string* error) {
       case LOAD_COMMAND_TYPES::LC_ID_DYLIB:
         {
           has_install_name = true;
-          /*
-           * Fallback
-           */
+          [[fallthrough]];
         }
       case LOAD_COMMAND_TYPES::LC_LOAD_DYLIB:
       case LOAD_COMMAND_TYPES::LC_LOAD_WEAK_DYLIB:

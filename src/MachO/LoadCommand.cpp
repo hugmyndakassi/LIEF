@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <iostream>
+#include <ostream>
 
 #include "LIEF/MachO/hash.hpp"
 
@@ -75,11 +75,6 @@ uint32_t LoadCommand::size() const {
   return size_;
 }
 
-const LoadCommand::raw_t& LoadCommand::data() const {
-  return original_data_;
-}
-
-
 uint64_t LoadCommand::command_offset() const {
   return command_offset_;
 }
@@ -120,18 +115,7 @@ bool LoadCommand::is_linkedit_data(const LoadCommand& cmd) {
   return false;
 }
 
-bool LoadCommand::operator==(const LoadCommand& rhs) const {
-  if (this == &rhs) {
-    return true;
-  }
-  size_t hash_lhs = Hash::hash(*this);
-  size_t hash_rhs = Hash::hash(rhs);
-  return hash_lhs == hash_rhs;
-}
 
-bool LoadCommand::operator!=(const LoadCommand& rhs) const {
-  return !(*this == rhs);
-}
 
 std::ostream& LoadCommand::print(std::ostream& os) const {
   os << std::hex;

@@ -1,5 +1,5 @@
-/* Copyright 2021 - 2022 R. Thomas
- * Copyright 2021 - 2022 Quarkslab
+/* Copyright 2021 - 2024 R. Thomas
+ * Copyright 2021 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 #include "TrieNode.hpp"
+#include "logging.hpp"
 
 #include <utility>
+
 #include "LIEF/MachO/Symbol.hpp"
-#include "LIEF/iostream.hpp"
-#include "logging.hpp"
+#include "LIEF/MachO/ExportInfo.hpp"
 #include "LIEF/MachO/enums.hpp"
+#include "LIEF/iostream.hpp"
 
 namespace LIEF {
 namespace MachO {

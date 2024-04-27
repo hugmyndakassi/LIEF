@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@
 #include "LIEF/DEX/instructions.hpp"
 
 #include <algorithm>
-#include <iostream>
 #include <map>
 
 namespace LIEF {
@@ -282,7 +281,7 @@ INST_FORMATS inst_format_from_opcode(OPCODES op) {
 
 size_t inst_size_from_format(INST_FORMATS fmt) {
   static const std::map<INST_FORMATS, size_t> size_map {
-    { INST_FORMATS::F_00x,   -1u  },
+    { INST_FORMATS::F_00x,   SIZE_MAX  },
     { INST_FORMATS::F_10x,   2    },
     { INST_FORMATS::F_12x,   2    },
     { INST_FORMATS::F_11n,   2    },
@@ -365,7 +364,7 @@ bool is_switch_array(const uint8_t* ptr, const uint8_t* end) {
 
 size_t switch_array_size(const uint8_t* ptr, const uint8_t* end) {
   if (!is_switch_array(ptr, end)) {
-    return -1u;
+    return SIZE_MAX;
   }
 
   const auto opcode = static_cast<OPCODES>(*ptr);
@@ -401,7 +400,7 @@ size_t switch_array_size(const uint8_t* ptr, const uint8_t* end) {
       }
     default:
       {
-        return -1u;
+        return SIZE_MAX;
       }
   }
 

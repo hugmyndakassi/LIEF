@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,9 +25,28 @@
 namespace LIEF {
 class SpanStream : public BinaryStream {
   public:
-  static result<SpanStream> from_vector(const std::vector<uint8_t>& data);
+  using BinaryStream::p;
+  using BinaryStream::end;
+  using BinaryStream::start;
+
+  static result<SpanStream> from_vector(const std::vector<uint8_t>& data) {
+    return SpanStream(data);
+  }
+
+  template<size_t N>
+  static result<SpanStream> from_array(const std::array<uint8_t, N>& data) {
+    return SpanStream(data.data(), N);
+  }
+
   SpanStream(span<const uint8_t> data);
   SpanStream(span<uint8_t> data);
+
+  SpanStream(const uint8_t* p, size_t size) :
+    data_{p, p + size}
+  {
+    stype_ = STREAM_TYPE::SPAN;
+  }
+
   SpanStream(const std::vector<uint8_t>& data);
   SpanStream() = delete;
 
@@ -37,8 +56,20 @@ class SpanStream : public BinaryStream {
   SpanStream(SpanStream&& other);
   SpanStream& operator=(SpanStream&& other);
 
-  inline uint64_t size() const override {
+  uint64_t size() const override {
     return data_.size();
+  }
+
+  const uint8_t* p() const override {
+    return data_.data() + this->pos();
+  }
+
+  const uint8_t* start() const override {
+    return data_.data();
+  }
+
+  const uint8_t* end() const override {
+    return data_.data() + size();
   }
 
   std::vector<uint8_t> content() const;

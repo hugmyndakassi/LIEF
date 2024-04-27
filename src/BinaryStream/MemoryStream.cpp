@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ MemoryStream::MemoryStream(uintptr_t base_address) :
   baseaddr_{base_address},
   size_{MAX_MEM_SIZE}
 {
+  LIEF_DEBUG("Memory base address: 0x{:010x}", base_address);
   stype_ = STREAM_TYPE::MEMORY;
 }
 
@@ -37,6 +38,7 @@ MemoryStream::MemoryStream(uintptr_t base_address, uint64_t size) :
   baseaddr_{base_address},
   size_{size}
 {
+  LIEF_DEBUG("Memory base address: 0x{:010x}", base_address);
   stype_ = STREAM_TYPE::MEMORY;
 }
 

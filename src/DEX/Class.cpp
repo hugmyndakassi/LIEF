@@ -1,6 +1,6 @@
 
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,11 @@
  */
 
 #include <utility>
+#include <climits>
 
 #include "LIEF/DEX/Class.hpp"
+#include "LIEF/DEX/Field.hpp"
+#include "LIEF/DEX/Method.hpp"
 #include "LIEF/DEX/hash.hpp"
 
 namespace LIEF {
@@ -30,7 +33,7 @@ Class::Class(std::string  fullname, uint32_t access_flags,
   access_flags_{access_flags},
   parent_{parent},
   source_filename_{std::move(source_filename)},
-  original_index_{-1u}
+  original_index_{UINT_MAX}
 {}
 
 std::string Class::package_normalized(const std::string& pkg) {
@@ -193,18 +196,7 @@ void Class::accept(Visitor& visitor) const {
   visitor.visit(*this);
 }
 
-bool Class::operator==(const Class& rhs) const {
-  if (this == &rhs) {
-    return true;
-  }
-  size_t hash_lhs = Hash::hash(*this);
-  size_t hash_rhs = Hash::hash(rhs);
-  return hash_lhs == hash_rhs;
-}
 
-bool Class::operator!=(const Class& rhs) const {
-  return !(*this == rhs);
-}
 
 std::ostream& operator<<(std::ostream& os, const Class& cls) {
   os << cls.pretty_name();

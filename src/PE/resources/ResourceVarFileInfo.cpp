@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 #include <numeric>
 
 #include "LIEF/PE/hash.hpp"
+#include "logging.hpp"
 
 #include "LIEF/utils.hpp"
 #include "LIEF/PE/EnumToString.hpp"
@@ -39,7 +40,7 @@ ResourceVarFileInfo::ResourceVarFileInfo(uint16_t type, std::u16string key) :
 {}
 
 ResourceVarFileInfo::ResourceVarFileInfo() :
-  key_{u8tou16("VarFileInfo")}
+  key_{*u8tou16("VarFileInfo")}
 {}
 
 
@@ -64,7 +65,10 @@ void ResourceVarFileInfo::key(const std::u16string& key) {
 }
 
 void ResourceVarFileInfo::key(const std::string& key) {
-  this->key(u8tou16(key));
+  if (auto res = u8tou16(key)) {
+    return this->key(std::move(*res));
+  }
+  LIEF_WARN("{} can't be converted to a UTF-16 string", key);
 }
 
 std::vector<uint32_t>& ResourceVarFileInfo::translations() {
@@ -80,21 +84,7 @@ void ResourceVarFileInfo::accept(Visitor& visitor) const {
 }
 
 
-bool ResourceVarFileInfo::operator==(const ResourceVarFileInfo& rhs) const {
-  if (this == &rhs) {
-    return true;
-  }
-  size_t hash_lhs = Hash::hash(*this);
-  size_t hash_rhs = Hash::hash(rhs);
-  return hash_lhs == hash_rhs;
-}
-
-bool ResourceVarFileInfo::operator!=(const ResourceVarFileInfo& rhs) const {
-  return !(*this == rhs);
-}
-
 std::ostream& operator<<(std::ostream& os, const ResourceVarFileInfo& entry) {
-
   std::string translation_str = std::accumulate(
      std::begin(entry.translations()), std::end(entry.translations()), std::string{},
      [] (const std::string& a, uint32_t t) {
@@ -103,10 +93,10 @@ std::ostream& operator<<(std::ostream& os, const ResourceVarFileInfo& entry) {
        uint16_t msb = t >> 16;
        auto cp = static_cast<CODE_PAGES>(msb);
 
-       auto lang = static_cast<RESOURCE_LANGS>(lsb & 0x3ff);
-       RESOURCE_SUBLANGS sublang = ResourcesManager::sub_lang(lang, (lsb >> 10));
+       uint32_t lang = ResourcesManager::lang_from_id(lsb);
+       uint32_t sublang = ResourcesManager::sublang_from_id(lsb);
 
-       ss << to_string(cp) << "/" << to_string(lang) << "/" << to_string(sublang);
+       ss << to_string(cp) << "/" << lang << "/" << sublang;
        return a.empty() ? ss.str() : a + " - " + ss.str();
      });
 

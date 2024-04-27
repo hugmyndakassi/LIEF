@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -149,7 +149,6 @@ void JsonVisitor::visit(const SegmentCommand& segment) {
   }
 
   visit(*segment.as<LoadCommand>());
-  node_["name"]              = segment.name();
   node_["virtual_address"]   = segment.virtual_address();
   node_["virtual_size"]      = segment.virtual_size();
   node_["file_size"]         = segment.file_size();

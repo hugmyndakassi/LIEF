@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,8 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <iostream>
-#include <stdexcept>
 #include <algorithm>
 #include <utility>
 
@@ -26,7 +24,6 @@
 #include "LIEF/BinaryStream/FileStream.hpp"
 
 #include "ELF/DataHandler/Handler.hpp"
-#include "LIEF/exception.hpp"
 
 namespace LIEF {
 namespace ELF {
@@ -134,7 +131,7 @@ bool Handler::has(uint64_t offset, uint64_t size, Node::Type type) {
   return it_node != std::end(nodes_);
 }
 
-result<Node&> Handler::get(uint64_t offset, uint64_t size, Node::Type type) {
+result<Handler::ref_t<Node>> Handler::get(uint64_t offset, uint64_t size, Node::Type type) {
   Node tmp{offset, size, type};
 
   const auto it_node = std::find_if(std::begin(nodes_), std::end(nodes_),
@@ -180,7 +177,7 @@ Node& Handler::add(const Node& node) {
 ok_error_t Handler::make_hole(uint64_t offset, uint64_t size) {
   auto res = reserve(offset, size);
   if (!res) {
-    return res.error();
+    return res;
   }
   data_.insert(std::begin(data_) + offset, size, 0);
   return ok();
@@ -188,16 +185,27 @@ ok_error_t Handler::make_hole(uint64_t offset, uint64_t size) {
 
 
 ok_error_t Handler::reserve(uint64_t offset, uint64_t size) {
+  static constexpr auto MAX_MEMORY_SIZE = 6_GB;
+  const auto full_size = static_cast<int64_t>(offset) +
+                         static_cast<int64_t>(size);
+  if (full_size < 0) {
+    return make_error_code(lief_errors::corrupted);
+  }
+
+  if (static_cast<uint64_t>(full_size) > data_.max_size()) {
+    return make_error_code(lief_errors::corrupted);
+  }
+
+  if (static_cast<uint64_t>(full_size) > MAX_MEMORY_SIZE) {
+    return make_error_code(lief_errors::corrupted);
+  }
+
   const bool must_resize = data_.size() < (offset + size);
   if (!must_resize) {
     return ok();
   }
 
-  try {
-    data_.resize(offset + size, 0);
-  } catch (const std::bad_alloc&) {
-    return make_error_code(lief_errors::data_too_large);
-  }
+  data_.resize(offset + size, 0);
   return ok();
 }
 

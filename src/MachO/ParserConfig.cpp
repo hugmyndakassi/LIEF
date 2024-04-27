@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ ParserConfig ParserConfig::deep() {
   conf.parse_dyld_exports  = true;
   conf.parse_dyld_bindings = true;
   conf.parse_dyld_rebases  = true;
+  conf.fix_from_memory     = true;
   return conf;
 }
 
@@ -36,6 +37,7 @@ ParserConfig ParserConfig::quick() {
   conf.parse_dyld_exports  = false;
   conf.parse_dyld_bindings = false;
   conf.parse_dyld_rebases  = false;
+  conf.fix_from_memory     = false;
   return conf;
 }
 

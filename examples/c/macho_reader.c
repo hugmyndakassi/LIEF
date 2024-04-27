@@ -6,8 +6,6 @@
 
 
 void print_binary(Macho_Binary_t* binary) {
-  fprintf(stdout, "Binary Name: %s\n", binary->name);
-
   Macho_Header_t header = binary->header;
   fprintf(stdout, "Header\n");
   fprintf(stdout, "========\n");
@@ -23,7 +21,8 @@ void print_binary(Macho_Binary_t* binary) {
   fprintf(stdout, "Commands\n");
   fprintf(stdout, "========\n");
   Macho_Command_t** commands = binary->commands;
-  for (size_t i = 0; commands[i] != NULL; ++i) {
+  size_t i = 0;
+  for (i = 0; commands[i] != NULL; ++i) {
     Macho_Command_t* command = commands[i];
     fprintf(stdout, ""
         "%-20s "
@@ -43,7 +42,7 @@ void print_binary(Macho_Binary_t* binary) {
   fprintf(stdout, "Segments\n");
   fprintf(stdout, "========\n");
   Macho_Segment_t** segments = binary->segments;
-  for (size_t i = 0; segments[i] != NULL; ++i) {
+  for (i = 0; segments[i] != NULL; ++i) {
     Macho_Segment_t* segment = segments[i];
     fprintf(stdout, ""
         "%-20s "
@@ -77,7 +76,7 @@ void print_binary(Macho_Binary_t* binary) {
   fprintf(stdout, "Sections\n");
   fprintf(stdout, "========\n");
   Macho_Section_t** sections = binary->sections;
-  for (size_t i = 0; sections[i] != NULL; ++i) {
+  for (i = 0; sections[i] != NULL; ++i) {
     Macho_Section_t* section = sections[i];
     fprintf(stdout, ""
         "%-20s "
@@ -117,7 +116,7 @@ void print_binary(Macho_Binary_t* binary) {
   fprintf(stdout, "Symbols\n");
   fprintf(stdout, "=======\n");
   Macho_Symbol_t** symbols = binary->symbols;
-  for (size_t i = 0; symbols[i] != NULL; ++i) {
+  for (i = 0; symbols[i] != NULL; ++i) {
     Macho_Symbol_t* symbol = symbols[i];
     fprintf(stdout, ""
         "%-30s "
@@ -146,6 +145,11 @@ int main(int argc, char **argv) {
   }
 
   Macho_Binary_t** macho_binaries = macho_parse(argv[1]);
+
+  if (macho_binaries == NULL) {
+    return EXIT_FAILURE;
+  }
+
   for (idx = 0; macho_binaries[idx] != NULL; ++idx) {
     print_binary(macho_binaries[idx]);
   }

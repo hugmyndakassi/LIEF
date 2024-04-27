@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,10 +35,6 @@ ResourceData::ResourceData(const ResourceData& other) :
   reserved_{other.reserved_}
 {}
 
-ResourceData* ResourceData::clone() const {
-  return new ResourceData{*this};
-}
-
 void ResourceData::swap(ResourceData& other) {
   ResourceNode::swap(other);
 
@@ -66,11 +62,13 @@ uint32_t ResourceData::code_page() const {
   return code_page_;
 }
 
-
-const std::vector<uint8_t>& ResourceData::content() const {
+span<const uint8_t> ResourceData::content() const {
   return content_;
 }
 
+span<uint8_t> ResourceData::content() {
+  return content_;
+}
 
 uint32_t ResourceData::reserved() const {
   return reserved_;
@@ -99,18 +97,7 @@ void ResourceData::accept(Visitor& visitor) const {
   visitor.visit(*this);
 }
 
-bool ResourceData::operator==(const ResourceData& rhs) const {
-  if (this == &rhs) {
-    return true;
-  }
-  size_t hash_lhs = Hash::hash(*this);
-  size_t hash_rhs = Hash::hash(rhs);
-  return hash_lhs == hash_rhs;
-}
 
-bool ResourceData::operator!=(const ResourceData& rhs) const {
-  return !(*this == rhs);
-}
 
 
 std::ostream& operator<<(std::ostream& os, const ResourceData& data) {

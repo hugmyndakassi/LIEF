@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 #ifndef LIEF_MACHO_RELOCATION_FIXUP_H
 #define LIEF_MACHO_RELOCATION_FIXUP_H
-#include <iostream>
+#include <ostream>
 #include <memory>
 
 #include "LIEF/visibility.h"
@@ -72,7 +72,7 @@ class LIEF_API RelocationFixup : public Relocation {
   //! should be RELOCATION_ORIGINS::ORIGIN_CHAINED_FIXUPS
   RELOCATION_ORIGINS origin() const override;
 
-  inline DYLD_CHAINED_PTR_FORMAT ptr_format() const {
+  DYLD_CHAINED_PTR_FORMAT ptr_format() const {
     return ptr_fmt_;
   }
 
@@ -85,11 +85,11 @@ class LIEF_API RelocationFixup : public Relocation {
   //! Not relevant for this kind of relocation
   void pc_relative(bool) override;
 
-  inline uint32_t offset() const {
+  uint32_t offset() const {
     return offset_;
   }
 
-  inline void offset(uint32_t offset) {
+  void offset(uint32_t offset) {
     offset_ = offset;
   }
 
@@ -99,8 +99,6 @@ class LIEF_API RelocationFixup : public Relocation {
   //! Changing the address means changing the offset
   void address(uint64_t address) override;
 
-  bool operator==(const RelocationFixup& rhs) const;
-  bool operator!=(const RelocationFixup& rhs) const;
 
   void accept(Visitor& visitor) const override;
 

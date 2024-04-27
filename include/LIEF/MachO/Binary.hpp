@@ -1,5 +1,6 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,11 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef LIEF_MACHO_BINARY_H_
-#define LIEF_MACHO_BINARY_H_
+#ifndef LIEF_MACHO_BINARY_H
+#define LIEF_MACHO_BINARY_H
 
 #include <vector>
 #include <map>
+#include <memory>
 
 #include "LIEF/types.hpp"
 #include "LIEF/visibility.h"
@@ -47,6 +49,7 @@ class DylibCommand;
 class DylinkerCommand;
 class DynamicSymbolCommand;
 class EncryptionInfo;
+class ExportInfo;
 class FunctionStarts;
 class Header;
 class LinkerOptHint;
@@ -54,6 +57,8 @@ class LoadCommand;
 class MainCommand;
 class Parser;
 class RPathCommand;
+class Relocation;
+class Section;
 class SegmentCommand;
 class SegmentSplitInfo;
 class SourceVersion;
@@ -160,6 +165,11 @@ class LIEF_API Binary : public LIEF::Binary  {
   //! Iterator which outputs const Relocation&
   using it_const_relocations = const_ref_iterator<const relocations_t&, const Relocation*>;
 
+  //! Iterator which outputs RPathCommand&
+  using it_rpaths = filter_iterator<commands_t&, RPathCommand*>;
+
+  //! Iterator which outputs const RPathCommand&
+  using it_const_rpaths = const_filter_iterator<const commands_t&, const RPathCommand*>;
 
   public:
   Binary(const Binary&) = delete;
@@ -225,6 +235,11 @@ class LIEF_API Binary : public LIEF::Binary  {
   //!
   //! @param filename Path to write the reconstructed binary
   void write(const std::string& filename) override;
+
+  //! Reconstruct the binary object and write the result in the given `os` stream
+  //!
+  //! @param os Output stream to write the reconstructed binary
+  void write(std::ostream& os) override;
 
   //! Reconstruct the binary object and return its content as bytes
   std::vector<uint8_t> raw();
@@ -424,8 +439,9 @@ class LIEF_API Binary : public LIEF::Binary  {
                      LIEF::Binary::VA_TYPES addr_type = LIEF::Binary::VA_TYPES::AUTO) override;
 
   //! Return the content located at virtual address
-  std::vector<uint8_t> get_content_from_virtual_address(uint64_t virtual_address, uint64_t size,
-                            LIEF::Binary::VA_TYPES addr_type = LIEF::Binary::VA_TYPES::AUTO) const override;
+  span<const uint8_t> get_content_from_virtual_address(
+      uint64_t virtual_address, uint64_t size,
+      Binary::VA_TYPES addr_type = Binary::VA_TYPES::AUTO) const override;
 
   //! The binary entrypoint
   uint64_t entrypoint() const override;
@@ -435,6 +451,12 @@ class LIEF_API Binary : public LIEF::Binary  {
 
   //! Check if the binary uses ``NX`` protection
   bool has_nx() const override;
+
+  /// Return True if the **heap** is flagged as non-executable. False otherwise
+  bool has_nx_stack() const;
+
+  /// Return True if the **stack** is flagged as non-executable. False otherwise
+  bool has_nx_heap() const;
 
   //! ``true`` if the binary has an entrypoint.
   //!
@@ -503,6 +525,10 @@ class LIEF_API Binary : public LIEF::Binary  {
   //! Return the MachO::RPathCommand command if present, a nullptr otherwise.
   RPathCommand* rpath();
   const RPathCommand* rpath() const;
+
+  //! Iterator over **all** the MachO::RPathCommand commands.
+  it_rpaths rpaths();
+  it_const_rpaths rpaths() const;
 
   //! ``true`` if the binary has a MachO::SymbolCommand command.
   bool has_symbol_command() const;
@@ -638,11 +664,16 @@ class LIEF_API Binary : public LIEF::Binary  {
   //! ``true`` if the binary has a LOAD_COMMAND_TYPES::LC_FILESET_ENTRY command
   bool has_filesets() const;
 
+  //! Name associated with the LC_FILESET_ENTRY binary
+  const std::string& fileset_name() const {
+    return fileset_name_;
+  }
+
   ~Binary() override;
 
   //! Shift the content located right after the Load commands table.
   //! This operation can be used to add a new command
-  void shift(size_t value);
+  ok_error_t shift(size_t value);
 
   //! Shift the position on the __LINKEDIT data by `width`
   ok_error_t shift_linkedit(size_t width);
@@ -651,15 +682,21 @@ class LIEF_API Binary : public LIEF::Binary  {
   //! it returns the in-memory base address of this binary.
   //!
   //! Otherwise, it returns 0
-  inline uint64_t memory_base_address() const {
+  uint64_t memory_base_address() const {
     return in_memory_base_addr_;
+  }
+
+  uint32_t page_size() const;
+
+  static bool classof(const LIEF::Binary* bin) {
+    return bin->format() == Binary::FORMATS::MACHO;
   }
 
   private:
   //! Default constructor
   Binary();
 
-  void shift_command(size_t width, size_t from_offset);
+  void shift_command(size_t width, uint64_t from_offset);
 
   //! Insert a Segment command in the cache field (segments_)
   //! and keep a consistent state of the indexes.
@@ -677,15 +714,15 @@ class LIEF_API Binary : public LIEF::Binary  {
   LIEF::Binary::functions_t get_abstract_imported_functions() const override;
   std::vector<std::string>  get_abstract_imported_libraries() const override;
 
-  inline relocations_t& relocations_list() {
+  relocations_t& relocations_list() {
     return this->relocations_;
   }
 
-  inline const relocations_t& relocations_list() const {
+  const relocations_t& relocations_list() const {
     return this->relocations_;
   }
 
-  inline size_t pointer_size() const {
+  size_t pointer_size() const {
     return this->is64_ ? sizeof(uint64_t) : sizeof(uint32_t);
   }
 
@@ -718,6 +755,7 @@ class LIEF_API Binary : public LIEF::Binary  {
   uint64_t fat_offset_ = 0;
   uint64_t fileset_offset_ = 0;
   uint64_t in_memory_base_addr_ = 0;
+  std::string fileset_name_;
 };
 
 } // namespace MachO

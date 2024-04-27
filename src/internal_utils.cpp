@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 namespace LIEF {
 
 inline bool is_printable(char c) {
-  return ::isprint(c) && c != '\n' && c != '\r';
+  return static_cast<bool>(::isprint(c)) && c != '\n' && c != '\r';
 }
 
 std::string printable_string(const std::string& str) {

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,12 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <iomanip>
-#include <memory>
-
 #include "logging.hpp"
 #include "LIEF/errors.hpp"
-#include "LIEF/MachO/hash.hpp"
 
 #include "LIEF/MachO/CodeSignature.hpp"
 #include "LIEF/MachO/CodeSignatureDir.hpp"
@@ -32,6 +28,7 @@
 #include "LIEF/MachO/SegmentSplitInfo.hpp"
 #include "LIEF/MachO/SymbolCommand.hpp"
 #include "LIEF/MachO/TwoLevelHints.hpp"
+#include "LIEF/MachO/SegmentCommand.hpp"
 
 namespace LIEF {
 namespace MachO {

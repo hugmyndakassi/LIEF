@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,11 @@
 #include <memory>
 
 #include "logging.hpp"
-#include "LIEF/errors.hpp"
 #include "LIEF/MachO/hash.hpp"
 
 #include "LIEF/MachO/Section.hpp"
-#include "LIEF/MachO/Relocation.hpp"
-#include "LIEF/MachO/DyldInfo.hpp"
 #include "LIEF/MachO/SegmentCommand.hpp"
+#include "LIEF/MachO/Relocation.hpp"
 #include "MachO/Structures.hpp"
 
 namespace LIEF {
@@ -259,6 +257,7 @@ Section& SegmentCommand::add_section(const Section& section) {
 
   file_size(data_.size());
   sections_.push_back(std::move(new_section));
+  numberof_sections(numberof_sections() + 1);
   return *sections_.back();
 }
 
@@ -325,18 +324,7 @@ void SegmentCommand::accept(Visitor& visitor) const {
   visitor.visit(*this);
 }
 
-bool SegmentCommand::operator==(const SegmentCommand& rhs) const {
-  if (this == &rhs) {
-    return true;
-  }
-  size_t hash_lhs = Hash::hash(*this);
-  size_t hash_rhs = Hash::hash(rhs);
-  return hash_lhs == hash_rhs;
-}
 
-bool SegmentCommand::operator!=(const SegmentCommand& rhs) const {
-  return !(*this == rhs);
-}
 
 bool SegmentCommand::classof(const LoadCommand* cmd) {
   // This must be sync with BinaryParser.tcc

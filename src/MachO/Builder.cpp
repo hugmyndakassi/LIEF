@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 #include <algorithm>
-#include <list>
 #include <fstream>
 #include <iterator>
 #include <utility>
 
 #include "logging.hpp"
 
-#include "LIEF/exception.hpp"
+
 #include "LIEF/BinaryStream/BinaryStream.hpp"
 
 #include "LIEF/MachO/Builder.hpp"
@@ -292,6 +291,28 @@ ok_error_t Builder::write(Binary& binary, const std::string& filename, config_t 
   return ok();
 }
 
+ok_error_t Builder::write(Binary& binary, std::ostream& out) {
+  config_t config;
+  return write(binary, out, std::move(config));
+}
+
+ok_error_t Builder::write(Binary& binary, std::ostream& out, config_t config) {
+  Builder builder{binary, std::move(config)};
+  builder.build();
+  builder.write(out);
+  return ok();
+}
+
+ok_error_t Builder::write(Binary& binary, std::vector<uint8_t>& out) {
+  config_t config;
+  return write(binary, out, config);
+}
+
+ok_error_t Builder::write(Binary& binary, std::vector<uint8_t>& out, config_t config) {
+  out = build_raw(binary, config);
+  return ok();
+}
+
 ok_error_t Builder::write(FatBinary& fat, const std::string& filename) {
   config_t config;
   return write(fat, filename, std::move(config));
@@ -309,16 +330,6 @@ ok_error_t Builder::write(FatBinary& fat, const std::string& filename, config_t 
   Builder builder{std::move(binaries), std::move(config)};
   builder.build_fat();
   builder.write(filename);
-  return ok();
-}
-
-ok_error_t Builder::write(Binary& binary, std::vector<uint8_t>& out) {
-  config_t config;
-  return write(binary, out, config);
-}
-
-ok_error_t Builder::write(Binary& binary, std::vector<uint8_t>& out, config_t config) {
-  out = build_raw(binary, config);
   return ok();
 }
 
@@ -342,6 +353,25 @@ ok_error_t Builder::write(FatBinary& fat, std::vector<uint8_t>& out, config_t co
   return ok();
 }
 
+ok_error_t Builder::write(FatBinary& fat, std::ostream& out) {
+  config_t config;
+  return write(fat, out, std::move(config));
+}
+
+ok_error_t Builder::write(FatBinary& fat, std::ostream& out, config_t config) {
+  std::vector<Binary*> binaries;
+  binaries.reserve(fat.binaries_.size());
+  std::transform(std::begin(fat.binaries_), std::end(fat.binaries_),
+                 std::back_inserter(binaries),
+                 [] (const std::unique_ptr<Binary>& bin) {
+                   return bin.get();
+                 });
+
+  Builder builder{std::move(binaries), std::move(config)};
+  builder.build_fat();
+  builder.write(out);
+  return ok();
+}
 
 std::vector<uint8_t> Builder::build_raw(Binary& binary, config_t config) {
   Builder builder{binary, std::move(config)};
@@ -355,10 +385,13 @@ ok_error_t Builder::write(const std::string& filename) const {
     LIEF_ERR("Can't write back the LIEF Mach-O object into '{}'", filename);
     return make_error_code(lief_errors::build_error);
   }
+  return write(output_file);
+}
 
+ok_error_t Builder::write(std::ostream& os) const {
   std::vector<uint8_t> content;
   raw_.move(content);
-  output_file.write(reinterpret_cast<const char*>(content.data()), content.size());
+  os.write(reinterpret_cast<const char*>(content.data()), content.size());
   return ok();
 }
 

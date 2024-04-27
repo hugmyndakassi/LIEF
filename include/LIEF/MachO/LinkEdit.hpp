@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef LIEF_MACHO_LINK_EDIT_H_
-#define LIEF_MACHO_LINK_EDIT_H_
+#ifndef LIEF_MACHO_LINK_EDIT_H
+#define LIEF_MACHO_LINK_EDIT_H
 
 #include <string>
 #include <vector>
-#include <iostream>
+#include <ostream>
 #include <memory>
 
 #include "LIEF/types.hpp"
@@ -42,6 +42,8 @@ class FunctionStarts;
 class LinkerOptHint;
 class SymbolCommand;
 class TwoLevelHints;
+class SegmentSplitInfo;
+class CodeSignature;
 
 class LIEF_API LinkEdit : public SegmentCommand {
 
@@ -61,8 +63,6 @@ class LIEF_API LinkEdit : public SegmentCommand {
 
   ~LinkEdit() override;
 
-  bool operator==(const SegmentCommand& rhs) const;
-  bool operator!=(const SegmentCommand& rhs) const;
 
   static bool classof(const LoadCommand* cmd);
   static bool segmentof(const SegmentCommand& segment);

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef LIEF_MACHO_SEGMENT_SPLIT_INFO_H_
-#define LIEF_MACHO_SEGMENT_SPLIT_INFO_H_
+#ifndef LIEF_MACHO_SEGMENT_SPLIT_INFO_H
+#define LIEF_MACHO_SEGMENT_SPLIT_INFO_H
 #include <vector>
-#include <iostream>
+#include <ostream>
 
 #include "LIEF/visibility.h"
 #include "LIEF/types.hpp"
@@ -52,18 +52,16 @@ class LIEF_API SegmentSplitInfo : public LoadCommand {
   void data_offset(uint32_t offset);
   void data_size(uint32_t size);
 
-  inline span<uint8_t> content() {
+  span<uint8_t> content() {
     return content_;
   }
 
-  inline span<const uint8_t> content() const {
+  span<const uint8_t> content() const {
     return content_;
   }
 
-  virtual ~SegmentSplitInfo();
+  ~SegmentSplitInfo() override;
 
-  bool operator==(const SegmentSplitInfo& rhs) const;
-  bool operator!=(const SegmentSplitInfo& rhs) const;
 
   void accept(Visitor& visitor) const override;
 

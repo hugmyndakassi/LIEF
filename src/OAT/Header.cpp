@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -132,21 +132,25 @@ Header::it_key_values_t Header::key_values() {
   it_key_values_t::container_type key_values_list;
   key_values_list.reserve(dex2oat_context_.size());
 
-  for (const auto& p : dex2oat_context_) {
-    HEADER_KEYS key = p.first;
-    std::string& value = dex2oat_context_.at(key);
-    key_values_list.emplace_back(key, std::ref(value));
+  for (auto& [k, v] :dex2oat_context_) {
+    HEADER_KEYS key = k;
+    std::string& value = v;
+    key_values_list.emplace_back(key, value);
   }
+
   return key_values_list;
 }
 
 Header::it_const_key_values_t Header::key_values() const {
   std::remove_const<it_const_key_values_t::container_type>::type key_values_list;
-  for (const auto& p : dex2oat_context_) {
-    HEADER_KEYS key = p.first;
-    std::string value = dex2oat_context_.at(key);
+  key_values_list.reserve(dex2oat_context_.size());
+
+  for (const auto& [k, v] :dex2oat_context_) {
+    HEADER_KEYS key = k;
+    const std::string& value = v;
     key_values_list.emplace_back(key, value);
   }
+
   return key_values_list;
 }
 
@@ -205,18 +209,7 @@ void Header::accept(Visitor& visitor) const {
   visitor.visit(*this);
 }
 
-bool Header::operator==(const Header& rhs) const {
-  if (this == &rhs) {
-    return true;
-  }
-  size_t hash_lhs = Hash::hash(*this);
-  size_t hash_rhs = Hash::hash(rhs);
-  return hash_lhs == hash_rhs;
-}
 
-bool Header::operator!=(const Header& rhs) const {
-  return !(*this == rhs);
-}
 
 
 
@@ -259,7 +252,7 @@ std::ostream& operator<<(std::ostream& os, const Header& hdr) {
   os << std::endl;
 
   for (const auto& p : hdr.key_values()) {
-    os << std::setw(WIDTH) << std::setfill(' ') << Header::key_to_string(p.first) + ":" << p.second << std::endl;
+    os << std::setw(WIDTH) << std::setfill(' ') << Header::key_to_string(p.key) + ":" << *p.value << std::endl;
   }
 
   return os;

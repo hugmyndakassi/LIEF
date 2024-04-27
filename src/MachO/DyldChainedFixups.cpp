@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,8 @@
 
 #include "MachO/Structures.hpp"
 #include "MachO/ChainedFixup.hpp"
+#include "MachO/ChainedBindingInfoList.hpp"
+
 namespace LIEF {
 namespace MachO {
 DyldChainedFixups::~DyldChainedFixups() = default;
@@ -39,6 +41,7 @@ DyldChainedFixups& DyldChainedFixups::operator=(const DyldChainedFixups& other) 
 }
 
 DyldChainedFixups::DyldChainedFixups(const DyldChainedFixups& other) :
+  LoadCommand::LoadCommand(other),
   data_offset_{other.data_offset_},
   data_size_{other.data_size_}
 {}
@@ -80,18 +83,7 @@ DyldChainedFixups* DyldChainedFixups::clone() const {
 }
 
 
-bool DyldChainedFixups::operator==(const DyldChainedFixups& rhs) const {
-  if (this == &rhs) {
-    return true;
-  }
-  size_t hash_lhs = Hash::hash(*this);
-  size_t hash_rhs = Hash::hash(rhs);
-  return hash_lhs == hash_rhs;
-}
 
-bool DyldChainedFixups::operator!=(const DyldChainedFixups& rhs) const {
-  return !(*this == rhs);
-}
 
 void DyldChainedFixups::accept(Visitor& visitor) const {
   visitor.visit(*this);

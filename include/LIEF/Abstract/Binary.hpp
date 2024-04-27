@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,17 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef LIEF_ABSTRACT_BINARY_H_
-#define LIEF_ABSTRACT_BINARY_H_
+#ifndef LIEF_ABSTRACT_BINARY_H
+#define LIEF_ABSTRACT_BINARY_H
 
 #include <vector>
-#include <memory>
 
 #include "LIEF/types.hpp"
 #include "LIEF/visibility.h"
 #include "LIEF/Object.hpp"
 #include "LIEF/iterators.hpp"
 #include "LIEF/errors.hpp"
+#include "LIEF/span.hpp"
 
 #include "LIEF/Abstract/Header.hpp"
 #include "LIEF/Abstract/Function.hpp"
@@ -37,7 +37,6 @@ class Symbol;
 //! Abstract binary that exposes an uniform API for the
 //! different executable file formats
 class LIEF_API Binary : public Object {
-
   public:
 
   //! Type of a virtual address
@@ -45,6 +44,14 @@ class LIEF_API Binary : public Object {
     AUTO = 0, ///< Try to guess if it's relative or not
     RVA  = 1, ///< Relative
     VA   = 2, ///< Absolute
+  };
+
+  enum FORMATS {
+    UNKNOWN = 0,
+    ELF,
+    PE,
+    MACHO,
+    OAT,
   };
 
   using functions_t = std::vector<Function>;
@@ -78,13 +85,19 @@ class LIEF_API Binary : public Object {
 
   public:
   Binary();
-  virtual ~Binary();
+  Binary(FORMATS fmt) :
+    format_{fmt}
+  {}
+
+  ~Binary() override;
 
   Binary& operator=(const Binary&);
   Binary(const Binary&);
 
   //! Executable format (ELF, PE, Mach-O) of the underlying binary
-  EXE_FORMATS format() const;
+  FORMATS format() const {
+    return format_;
+  }
 
   //! Return the abstract header of the binary
   Header header() const;
@@ -118,11 +131,10 @@ class LIEF_API Binary : public Object {
   //! Binary's entrypoint (if any)
   virtual uint64_t entrypoint() const = 0;
 
-  //! Binary's name
-  const std::string& name() const;
-
   //! Binary's original size
-  uint64_t original_size() const;
+  uint64_t original_size() const {
+    return original_size_;
+  }
 
   //! Return the functions exported by the binary
   functions_t exported_functions() const;
@@ -160,18 +172,18 @@ class LIEF_API Binary : public Object {
                              VA_TYPES addr_type = VA_TYPES::AUTO) = 0;
 
   //! Return the content located at the given virtual address
-  virtual std::vector<uint8_t> get_content_from_virtual_address(uint64_t virtual_address,
-                                        uint64_t size, VA_TYPES addr_type = VA_TYPES::AUTO) const = 0;
-
-  //! Change the binary's name
-  void name(const std::string& name);
+  virtual span<const uint8_t>
+    get_content_from_virtual_address(uint64_t virtual_address, uint64_t size,
+                                     VA_TYPES addr_type = VA_TYPES::AUTO) const = 0;
 
   //! @brief Change binary's original size.
   //!
   //! @warning
   //! This function should be used carefully as some optimizations
   //! can be performed with this value
-  void original_size(uint64_t size);
+  void original_size(uint64_t size) {
+    original_size_ = size;
+  }
 
   //! Check if the binary is position independent
   virtual bool is_pie() const = 0;
@@ -183,7 +195,7 @@ class LIEF_API Binary : public Object {
   virtual uint64_t imagebase() const = 0;
 
   //! Constructor functions that are called prior any other functions
-  virtual LIEF::Binary::functions_t ctor_functions() const = 0;
+  virtual functions_t ctor_functions() const = 0;
 
   //! Convert the given offset into a virtual address.
   //!
@@ -195,12 +207,12 @@ class LIEF_API Binary : public Object {
 
   //! Build & transform the Binary object representation into a *real* executable
   virtual void write(const std::string& name) = 0;
+  virtual void write(std::ostream& os) = 0;
 
   LIEF_API friend std::ostream& operator<<(std::ostream& os, const Binary& binary);
 
   protected:
-  EXE_FORMATS format_ = EXE_FORMATS::FORMAT_UNKNOWN;
-  std::string name_;
+  FORMATS format_ = FORMATS::UNKNOWN;
 
   uint64_t original_size_ = 0;
 
@@ -214,6 +226,11 @@ class LIEF_API Binary : public Object {
   virtual functions_t  get_abstract_imported_functions() const = 0;
   virtual std::vector<std::string>  get_abstract_imported_libraries() const = 0;
 };
+
+LIEF_API const char* to_string(Binary::VA_TYPES e);
+LIEF_API const char* to_string(Binary::FORMATS e);
+
 }
+
 
 #endif

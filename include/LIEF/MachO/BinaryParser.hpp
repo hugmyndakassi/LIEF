@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef LIEF_MACHO_BINARY_PARSER_H_
-#define LIEF_MACHO_BINARY_PARSER_H_
+#ifndef LIEF_MACHO_BINARY_PARSER_H
+#define LIEF_MACHO_BINARY_PARSER_H
 #include <memory>
 #include <string>
 #include <vector>
@@ -37,6 +37,7 @@ class BinaryStream;
 class SpanStream;
 
 namespace MachO {
+class ChainedBindingInfo;
 class CodeSignature;
 class CodeSignatureDir;
 class DataInCode;
@@ -74,10 +75,10 @@ class LIEF_API BinaryParser : public LIEF::Parser {
   friend class MachO::Parser;
 
   //! Maximum number of relocations
-  constexpr static size_t MAX_RELOCATIONS = std::numeric_limits<uint16_t>::max();
+  constexpr static size_t MAX_RELOCATIONS = (std::numeric_limits<uint16_t>::max)();
 
   //! Maximum number of MachO LoadCommand
-  constexpr static size_t MAX_COMMANDS = std::numeric_limits<uint16_t>::max();
+  constexpr static size_t MAX_COMMANDS = (std::numeric_limits<uint16_t>::max)();
 
   public:
   static std::unique_ptr<Binary> parse(const std::string& file);
@@ -94,7 +95,7 @@ class LIEF_API BinaryParser : public LIEF::Parser {
   BinaryParser& operator=(const BinaryParser& copy) = delete;
   BinaryParser(const BinaryParser& copy) = delete;
 
-  ~BinaryParser();
+  ~BinaryParser() override;
 
   private:
   using exports_list_t = std::vector<std::unique_ptr<ExportInfo>>;
@@ -147,7 +148,7 @@ class LIEF_API BinaryParser : public LIEF::Parser {
 
   template<class MACHO_T>
   ok_error_t do_rebase(uint8_t type, uint8_t segment_idx, uint64_t segment_offset,
-                       const it_opaque_segments segments);
+                       it_opaque_segments segments);
 
   /*
    * This set of functions are related to the parsing of LC_DYLD_CHAINED_FIXUPS
@@ -227,7 +228,10 @@ class LIEF_API BinaryParser : public LIEF::Parser {
   ok_error_t parse_dyld_exports();
 
   ok_error_t parse_export_trie(exports_list_t& exports, uint64_t start,
-                               uint64_t end, const std::string& prefix);
+                               uint64_t end, const std::string& prefix,
+                               bool* invalid_names);
+
+  void copy_from(ChainedBindingInfo& to, ChainedBindingInfo& from);
 
   std::unique_ptr<BinaryStream>  stream_;
   std::unique_ptr<Binary>        binary_;

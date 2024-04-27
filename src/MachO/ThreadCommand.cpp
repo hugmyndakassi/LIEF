@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <numeric>
 #include <iomanip>
 
 #include "logging.hpp"
@@ -64,37 +63,41 @@ CPU_TYPES ThreadCommand::architecture() const {
   return architecture_;
 }
 
-const std::vector<uint8_t>& ThreadCommand::state() const {
-  return state_;
-}
-
-std::vector<uint8_t>& ThreadCommand::state() {
-  return const_cast<std::vector<uint8_t>&>(static_cast<const ThreadCommand*>(this)->state());
-}
-
 uint64_t ThreadCommand::pc() const {
   uint64_t entry = 0;
   switch(architecture_) {
     case CPU_TYPES::CPU_TYPE_X86:
       {
+        if (state_.size() < sizeof(details::x86_thread_state_t)) {
+          return entry;
+        }
         entry = reinterpret_cast<const details::x86_thread_state_t*>(state_.data())->eip;
         break;
       }
 
     case CPU_TYPES::CPU_TYPE_X86_64:
       {
+        if (state_.size() < sizeof(details::x86_thread_state64_t)) {
+          return entry;
+        }
         entry = reinterpret_cast<const details::x86_thread_state64_t*>(state_.data())->rip;
         break;
       }
 
     case CPU_TYPES::CPU_TYPE_ARM:
       {
+        if (state_.size() < sizeof(details::arm_thread_state_t)) {
+          return entry;
+        }
         entry = reinterpret_cast<const details::arm_thread_state_t*>(state_.data())->r15;
         break;
       }
 
     case CPU_TYPES::CPU_TYPE_ARM64:
       {
+        if (state_.size() < sizeof(details::arm_thread_state64_t)) {
+          return entry;
+        }
         entry = reinterpret_cast<const details::arm_thread_state64_t*>(state_.data())->pc;
         break;
       }
@@ -127,18 +130,7 @@ void ThreadCommand::accept(Visitor& visitor) const {
 }
 
 
-bool ThreadCommand::operator==(const ThreadCommand& rhs) const {
-  if (this == &rhs) {
-    return true;
-  }
-  size_t hash_lhs = Hash::hash(*this);
-  size_t hash_rhs = Hash::hash(rhs);
-  return hash_lhs == hash_rhs;
-}
 
-bool ThreadCommand::operator!=(const ThreadCommand& rhs) const {
-  return !(*this == rhs);
-}
 
 bool ThreadCommand::classof(const LoadCommand* cmd) {
   // This must be sync with BinaryParser.tcc

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2022 R. Thomas
- * Copyright 2017 - 2022 Quarkslab
+/* Copyright 2017 - 2024 R. Thomas
+ * Copyright 2017 - 2024 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
 
   std::unique_ptr<LIEF::ELF::Binary> binary = LIEF::ELF::Parser::parse(argv[1]);
   LIEF::ELF::Segment seg;
-  seg.type(LIEF::ELF::SEGMENT_TYPES::PT_LOAD);
+  seg.type(LIEF::ELF::Segment::TYPE::LOAD);
   //seg.content(std::vector<uint8_t>(0x100));
   //binary->add(seg);
   LIEF::logging::set_level(LIEF::logging::LOGGING_LEVEL::LOG_DEBUG);
